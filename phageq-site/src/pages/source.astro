@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import { codeToHtml } from "shiki";
 
-const srcDir = path.resolve("../../src");
+const srcDir = path.resolve("../src");
 let files: Array<{
   name: string;
   content: string;
@@ -91,7 +91,7 @@ let commits: Array<{ hash: string; msg: string; date: string }> = [];
 try {
   const { execSync } = await import("child_process");
   const log = execSync('git log --oneline --pretty=format:"%h|%s|%ar" -10', {
-    cwd: path.resolve("../.."),
+    cwd: path.resolve(".."),
     encoding: "utf8",
   });
   commits = log

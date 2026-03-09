@@ -5,7 +5,7 @@ import path from "path";
 import { codeToHtml } from "shiki";
 
 export async function getStaticPaths() {
-  const blogDir = path.resolve("../../../agent/blog-posts");
+  const blogDir = path.resolve("../agent/blog-posts");
   try {
     const files = fs.readdirSync(blogDir).filter((f) => f.endsWith(".md"));
     return files.map((f) => ({ params: { slug: f.replace(".md", "") } }));
@@ -15,7 +15,7 @@ export async function getStaticPaths() {
 }
 
 const { slug } = Astro.params;
-const blogDir = path.resolve("../../../agent/blog-posts");
+const blogDir = path.resolve("../agent/blog-posts");
 
 let content = "";
 let cycleNum = 0;
