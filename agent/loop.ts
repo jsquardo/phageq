@@ -198,7 +198,7 @@ async function runTests(): Promise<{ passed: boolean; output: string }> {
     stderr: err.stderr ?? "",
   }));
   const output = stdout + stderr;
-  const passed = output.includes("Tests:") && !output.includes("failed");
+  const passed = output.includes("Tests:") && !output.match(/\d+ failed/);
   return { passed, output };
 }
 
