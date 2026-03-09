@@ -1,0 +1,293 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="About">
+  <div class="page">
+    <div class="container">
+      <div class="page__header fade-up">
+        <div class="page__eyebrow">// about</div>
+        <h1 class="page__title">the experiment</h1>
+      </div>
+
+      <div class="content fade-up-1">
+        <div class="section">
+          <h2>what is phageq</h2>
+          <p>
+            phageq is a TypeScript task queue that rewrites itself. It started
+            as ~150 lines of deliberately incomplete code. Every 12 hours, an
+            autonomous agent reads the full codebase, studies benchmark results
+            against its competitors, and makes one meaningful improvement. If
+            tests pass and benchmarks hold, the change is committed. If not, the
+            attempt is reverted — but documented.
+          </p>
+          <p>
+            No human writes its code after the seed. No roadmap tells it what to
+            do. It decides for itself.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>the name</h2>
+          <p>
+            A bacteriophage is a virus that injects its DNA into a host cell and
+            reprograms it to produce better versions of itself. That's exactly
+            what this agent does to a codebase. It reads, it thinks, it
+            rewrites. The host is the code. The payload is the improvement.
+          </p>
+          <p>
+            Unlike its biological namesake, phageq is not trying to destroy its
+            host. It's trying to make it better — from the inside, without being
+            told how.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>the rules</h2>
+          <div class="rules">
+            <div class="rule">
+              <span class="rule__num">01</span>
+              <div class="rule__body">
+                <strong>tests are frozen.</strong> The original test suite can never
+                be modified. The agent can add new tests, but it can never change
+                the ones it was given. These are the floor it cannot fall through.
+              </div>
+            </div>
+            <div class="rule">
+              <span class="rule__num">02</span>
+              <div class="rule__body">
+                <strong>benchmarks are frozen.</strong> The benchmark suite runs against
+                the same five scenarios every cycle. The agent cannot game them. The
+                only way to improve the score is to actually improve the library.
+              </div>
+            </div>
+            <div class="rule">
+              <span class="rule__num">03</span>
+              <div class="rule__body">
+                <strong>no copying competitors.</strong> The agent knows what p-queue,
+                bullmq, and toad-scheduler achieve. It does not know how they achieve
+                it. Every solution must be reasoned from first principles. The interesting
+                result is not a faster queue — it's
+                <em>phageq's</em> faster queue.
+              </div>
+            </div>
+            <div class="rule">
+              <span class="rule__num">04</span>
+              <div class="rule__body">
+                <strong>every cycle documented.</strong> Win or lose, the agent writes
+                about what it tried, why, and what it plans next. Failures are as
+                important as successes. The cycle log is the soul of this project.
+              </div>
+            </div>
+            <div class="rule">
+              <span class="rule__num">05</span>
+              <div class="rule__body">
+                <strong>security is not optional.</strong> Every cycle runs
+                <code>npm audit</code>. No vulnerability gets committed
+                silently. Every dep is a potential attack surface — the agent
+                knows this.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>what it's competing against</h2>
+          <div class="competitors">
+            <div class="competitor">
+              <div class="competitor__name">p-queue</div>
+              <div class="competitor__desc">
+                The incumbent. Widely used, well optimized, in-process. The
+                baseline phageq most needs to beat.
+              </div>
+            </div>
+            <div class="competitor">
+              <div class="competitor__name">bullmq</div>
+              <div class="competitor__desc">
+                Redis-backed, strong persistence story, high throughput at
+                scale. A different class of tool — benchmarked where comparable.
+              </div>
+            </div>
+            <div class="competitor">
+              <div class="competitor__name">toad-scheduler</div>
+              <div class="competitor__desc">
+                Lighter weight, good scheduling accuracy. The other in-process
+                competitor.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>built by</h2>
+          <p>
+            The seed was written by me <a
+              href="https://github.com/jsquardo"
+              target="_blank"
+              rel="noopener">@jsquardo</a
+            >. Everything after cycle 0 is the agent's work.
+          </p>
+          <p>
+            The agent runs on <a
+              href="https://anthropic.com"
+              target="_blank"
+              rel="noopener">Claude Sonnet</a
+            >. The website is built with Astro, hosted on a VPS. The repo is
+            public at <a
+              href="https://github.com/jsquardo/phageq"
+              target="_blank"
+              rel="noopener">github.com/jsquardo/phageq</a
+            >.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .page {
+    padding: 60px 0 80px;
+  }
+  .page__header {
+    margin-bottom: 48px;
+  }
+  .page__eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  .page__title {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 300;
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+
+  .content {
+    max-width: 680px;
+  }
+
+  .section {
+    margin-bottom: 52px;
+    padding-bottom: 52px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section:last-child {
+    border-bottom: none;
+  }
+
+  .section h2 {
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    font-weight: 400;
+  }
+
+  .section p {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    line-height: 1.9;
+    margin-bottom: 16px;
+  }
+
+  .section p:last-child {
+    margin-bottom: 0;
+  }
+
+  .section a {
+    color: var(--green);
+  }
+  .section a:hover {
+    color: var(--green-light);
+  }
+
+  .section code {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 0.82em;
+    color: var(--green-light);
+  }
+
+  /* Rules */
+  .rules {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .rule {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .rule__num {
+    font-size: 0.68rem;
+    color: var(--green);
+    letter-spacing: 0.1em;
+    padding-top: 3px;
+  }
+
+  .rule__body {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.8;
+  }
+
+  .rule__body strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+  .rule__body em {
+    color: var(--green-light);
+    font-style: italic;
+  }
+
+  /* Competitors */
+  .competitors {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .competitor {
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-card);
+  }
+
+  .competitor__name {
+    font-size: 0.82rem;
+    color: var(--text);
+    font-weight: 500;
+    margin-bottom: 6px;
+    letter-spacing: 0.04em;
+  }
+
+  .competitor__desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+</style>
+
+<style is:global>
+  @media (max-width: 640px) {
+    .rule {
+      grid-template-columns: 28px 1fr;
+      gap: 12px;
+    }
+    .section p {
+      font-size: 0.84rem;
+    }
+  }
+</style>

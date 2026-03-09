@@ -1,0 +1,396 @@
+---
+import Base from "../../layouts/Base.astro";
+import fs from "fs";
+import path from "path";
+import { codeToHtml } from "shiki";
+
+export async function getStaticPaths() {
+  const blogDir = path.resolve("../../../agent/blog-posts");
+  try {
+    const files = fs.readdirSync(blogDir).filter((f) => f.endsWith(".md"));
+    return files.map((f) => ({ params: { slug: f.replace(".md", "") } }));
+  } catch {
+    return [];
+  }
+}
+
+const { slug } = Astro.params;
+const blogDir = path.resolve("../../../agent/blog-posts");
+
+let content = "";
+let cycleNum = 0;
+let date = "";
+let notFound = false;
+
+try {
+  const filePath = path.join(blogDir, `${slug}.md`);
+  const raw = fs.readFileSync(filePath, "utf8");
+
+  const cycleMatch = slug?.match(/cycle-(\d+)/);
+  cycleNum = cycleMatch ? parseInt(cycleMatch[1]) : 0;
+
+  const dateMatch = raw.match(/date:\s*(.+)/);
+  date = dateMatch
+    ? new Date(dateMatch[1].trim()).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
+
+  content = raw.replace(/^---[\s\S]*?---\n/, "").trim();
+} catch {
+  notFound = true;
+}
+
+let prevNum: number | null = null;
+let nextNum: number | null = null;
+
+try {
+  const files = fs
+    .readdirSync(blogDir)
+    .filter((f) => f.endsWith(".md"))
+    .map((f) => parseInt(f.match(/cycle-(\d+)/)?.[1] ?? "0"))
+    .sort((a, b) => a - b);
+
+  const idx = files.indexOf(cycleNum);
+  if (idx > 0) prevNum = files[idx - 1];
+  if (idx < files.length - 1) nextNum = files[idx + 1];
+} catch {}
+
+// Custom phageq theme — matches site palette exactly
+const phageqTheme = {
+  name: "phageq",
+  type: "dark" as const,
+  colors: {
+    "editor.background": "#0D1F1A",
+    "editor.foreground": "#9ECFBE",
+  },
+  tokenColors: [
+    {
+      scope: ["comment", "punctuation.definition.comment"],
+      settings: { foreground: "#2E5A46" },
+    },
+    {
+      scope: ["keyword", "storage.type", "storage.modifier"],
+      settings: { foreground: "#00C896" },
+    },
+    { scope: ["keyword.operator"], settings: { foreground: "#4DDFB2" } },
+    {
+      scope: ["entity.name.type", "entity.name.class", "support.type"],
+      settings: { foreground: "#7FFFD4" },
+    },
+    {
+      scope: ["entity.name.function", "support.function", "meta.function-call"],
+      settings: { foreground: "#00E5A8" },
+    },
+    {
+      scope: ["variable", "variable.other"],
+      settings: { foreground: "#9ECFBE" },
+    },
+    { scope: ["variable.parameter"], settings: { foreground: "#B2DFCE" } },
+    { scope: ["string", "string.quoted"], settings: { foreground: "#4DDFB2" } },
+    {
+      scope: ["constant.numeric", "constant.language"],
+      settings: { foreground: "#7FFFD4" },
+    },
+    {
+      scope: ["constant.language.boolean"],
+      settings: { foreground: "#00C896" },
+    },
+    {
+      scope: ["punctuation", "meta.brace"],
+      settings: { foreground: "#3A6B55" },
+    },
+    {
+      scope: ["meta.type.annotation", "meta.type.parameters"],
+      settings: { foreground: "#00A87A" },
+    },
+    { scope: ["support.type.primitive"], settings: { foreground: "#00C896" } },
+    { scope: ["entity.name.tag"], settings: { foreground: "#00E5A8" } },
+    {
+      scope: ["import", "keyword.control.import"],
+      settings: { foreground: "#00C896" },
+    },
+  ],
+};
+
+// Renders markdown to HTML, with Shiki syntax highlighting for fenced code blocks
+async function renderMarkdown(md: string): Promise<string> {
+  // Step 1: extract and highlight all fenced code blocks first
+  const highlightedBlocks: string[] = [];
+  const blockMatches = [...md.matchAll(/```(\w*)\n([\s\S]*?)```/g)];
+
+  for (const match of blockMatches) {
+    const lang = match[1] || "typescript";
+    const code = match[2];
+    try {
+      const highlighted = await codeToHtml(code, { lang, theme: phageqTheme });
+      highlightedBlocks.push(`<div class="code-block">${highlighted}</div>`);
+    } catch {
+      const escaped = code
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      highlightedBlocks.push(
+        `<div class="code-block"><pre><code>${escaped}</code></pre></div>`,
+      );
+    }
+  }
+
+  // Step 2: replace code blocks with numbered placeholders
+  let blockIdx = 0;
+  const withPlaceholders = md.replace(/```(\w*)\n([\s\S]*?)```/g, () => {
+    return `\n\nCODE_BLOCK_PLACEHOLDER_${blockIdx++}\n\n`;
+  });
+
+  // Step 3: process the rest of the markdown
+  blockIdx = 0;
+  return withPlaceholders
+    .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+    .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .split("\n\n")
+    .map((p) => {
+      const trimmed = p.trim();
+      if (!trimmed) return "";
+      // Swap placeholders back for highlighted blocks
+      if (trimmed.startsWith("CODE_BLOCK_PLACEHOLDER_")) {
+        const idx = parseInt(trimmed.replace("CODE_BLOCK_PLACEHOLDER_", ""));
+        return highlightedBlocks[idx] ?? "";
+      }
+      if (
+        trimmed.startsWith("<h") ||
+        trimmed.startsWith("<pre") ||
+        trimmed.startsWith("<div")
+      )
+        return trimmed;
+      return `<p>${trimmed.replace(/\n/g, " ")}</p>`;
+    })
+    .join("\n");
+}
+
+const html = notFound ? "" : await renderMarkdown(content);
+---
+
+<Base title={`Cycle ${cycleNum}`}>
+  <div class="page">
+    <div class="container">
+      {
+        notFound ? (
+          <div class="not-found fade-up">
+            <p>Cycle not found.</p>
+            <a href="/cycles">← all cycles</a>
+          </div>
+        ) : (
+          <>
+            <div class="post-header fade-up">
+              <a href="/cycles" class="back">
+                ← all cycles
+              </a>
+              <div class="post-meta">
+                <span class="tag tag--green">cycle {cycleNum}</span>
+                <span class="post-date">{date}</span>
+              </div>
+              <h1 class="post-title">
+                cycle {String(cycleNum).padStart(3, "0")}
+              </h1>
+            </div>
+
+            <div class="post-body fade-up-1" set:html={html} />
+
+            <div class="post-nav fade-up-2">
+              {prevNum !== null ? (
+                <a
+                  href={`/cycles/cycle-${String(prevNum).padStart(3, "0")}`}
+                  class="post-nav__link post-nav__link--prev"
+                >
+                  <span class="post-nav__dir">← previous</span>
+                  <span class="post-nav__label">cycle {prevNum}</span>
+                </a>
+              ) : (
+                <div />
+              )}
+
+              {nextNum !== null ? (
+                <a
+                  href={`/cycles/cycle-${String(nextNum).padStart(3, "0")}`}
+                  class="post-nav__link post-nav__link--next"
+                >
+                  <span class="post-nav__dir">next →</span>
+                  <span class="post-nav__label">cycle {nextNum}</span>
+                </a>
+              ) : (
+                <div />
+              )}
+            </div>
+          </>
+        )
+      }
+    </div>
+  </div>
+</Base>
+
+<style>
+  .page {
+    padding: 60px 0 80px;
+  }
+
+  .back {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    margin-bottom: 24px;
+    transition: color 0.15s;
+  }
+  .back:hover {
+    color: var(--green);
+  }
+
+  .post-header {
+    margin-bottom: 40px;
+  }
+  .post-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .post-date {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+  }
+
+  .post-title {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .post-body {
+    max-width: 680px;
+    font-size: 0.88rem;
+    line-height: 1.85;
+    color: var(--text-muted);
+  }
+
+  .post-body :global(h2) {
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 36px 0 14px;
+    font-weight: 400;
+  }
+  .post-body :global(h3) {
+    font-size: 0.88rem;
+    color: var(--text);
+    margin: 24px 0 10px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+  }
+  .post-body :global(p) {
+    margin-bottom: 16px;
+    color: var(--text-muted);
+  }
+  .post-body :global(strong) {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* Inline code */
+  .post-body :global(code) {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 0.82em;
+    color: var(--green-light);
+    font-family: "DM Mono", "Fira Code", monospace;
+  }
+
+  /* Shiki highlighted code blocks */
+  .post-body :global(.code-block) {
+    margin: 24px 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .post-body :global(.code-block pre) {
+    margin: 0 !important;
+    padding: 20px !important;
+    overflow-x: auto;
+    font-size: 0.8rem;
+    line-height: 1.6;
+  }
+
+  /* Override inline code styles inside highlighted blocks */
+  .post-body :global(.code-block code) {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    font-size: inherit !important;
+    color: inherit !important;
+    font-family: "DM Mono", "Fira Code", monospace;
+  }
+
+  .post-nav {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 60px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+  }
+  .post-nav__link {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--text);
+  }
+  .post-nav__link--next {
+    text-align: right;
+  }
+  .post-nav__dir {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+  .post-nav__label {
+    font-size: 0.85rem;
+    color: var(--green);
+  }
+
+  .not-found {
+    padding: 60px 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+</style>
+
+<style is:global>
+  @media (max-width: 640px) {
+    .post-title {
+      font-size: 2rem;
+    }
+    .post-body {
+      font-size: 0.84rem;
+    }
+    .post-nav {
+      flex-direction: column;
+      gap: 20px;
+    }
+    .post-nav__link--next {
+      text-align: left;
+    }
+  }
+</style>

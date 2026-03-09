@@ -1,0 +1,248 @@
+---
+import Base from '../layouts/Base.astro';
+import fs from 'fs';
+import path from 'path';
+
+let benchData: any = null;
+let competitorData: any = null;
+let lastUpdated = '';
+
+try {
+  benchData = JSON.parse(fs.readFileSync(path.resolve('../benchmarks/latest.json'), 'utf8'));
+  lastUpdated = new Date(benchData.timestamp).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+} catch {}
+
+try {
+  competitorData = JSON.parse(fs.readFileSync(path.resolve('../benchmarks/competitors-latest.json'), 'utf8'));
+} catch {}
+
+function getCompetitor(name: string, library: string) {
+  return competitorData?.results?.find((r: any) => r.name === name && r.library === library);
+}
+
+function winTag(a: number, b: number) {
+  if (!b) return 'n/a';
+  const delta = ((a - b) / b * 100).toFixed(1);
+  if (a > b) return { type: 'win', label: `+${delta}%` };
+  if (a < b) return { type: 'lose', label: `${delta}%` };
+  return { type: 'tie', label: '0%' };
+}
+---
+
+<Base title="Leaderboard">
+  <div class="page">
+    <div class="container--wide">
+
+      <div class="page__header fade-up">
+        <div class="page__eyebrow">// leaderboard</div>
+        <h1 class="page__title">benchmark results</h1>
+        <p class="page__desc">
+          Every cycle, phageq runs the same frozen benchmark suite against itself
+          and its competitors. The agent sees this table. It knows exactly where
+          it's winning and where it's losing.
+        </p>
+        {lastUpdated && (
+          <div class="updated">
+            <span class="dot"></span>
+            last updated: {lastUpdated}
+          </div>
+        )}
+      </div>
+
+      {(!benchData || !competitorData) ? (
+        <div class="empty fade-up-1">
+          <p>No benchmark data yet. Run <code>npm run bench:all</code> from the phageq directory.</p>
+        </div>
+      ) : (
+        <>
+          {benchData.results.map((phage: any) => {
+            const pq = getCompetitor(phage.name, 'p-queue');
+            const ts = getCompetitor(phage.name, 'toad-scheduler');
+            const vsPQ = pq ? winTag(phage.jobsPerSec, pq.jobsPerSec) : null;
+            const vsTS = ts ? winTag(phage.jobsPerSec, ts.jobsPerSec) : null;
+
+            return (
+              <div class="scenario fade-up-1">
+                <div class="scenario__header">
+                  <h2 class="scenario__name">{phage.name.replace(/_/g, ' ')}</h2>
+                  <div class="scenario__tags">
+                    {vsPQ && typeof vsPQ === 'object' && (
+                      <span class={`tag tag--${vsPQ.type}`}>
+                        p-queue {vsPQ.label}
+                      </span>
+                    )}
+                    {vsTS && typeof vsTS === 'object' && (
+                      <span class={`tag tag--${vsTS.type}`}>
+                        toad-scheduler {vsTS.label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div class="scenario__table">
+                  <div class="tbl-header">
+                    <span>library</span>
+                    <span>jobs/sec</span>
+                    <span>total time</span>
+                    <span>p50 latency</span>
+                    <span>p99 latency</span>
+                    <span>memory</span>
+                  </div>
+
+                  <!-- phageq row -->
+                  <div class="tbl-row tbl-row--highlight">
+                    <span class="tbl-lib">
+                      <span class="dot"></span>
+                      phageq
+                    </span>
+                    <span class="tbl-val tbl-val--primary">{phage.jobsPerSec.toLocaleString()}</span>
+                    <span class="tbl-val">{phage.totalMs.toFixed(0)}ms</span>
+                    <span class="tbl-val">{phage.p50Ms < 1 ? `${(phage.p50Ms*1000).toFixed(0)}μs` : `${phage.p50Ms.toFixed(2)}ms`}</span>
+                    <span class="tbl-val">{phage.p99Ms < 1 ? `${(phage.p99Ms*1000).toFixed(0)}μs` : `${phage.p99Ms.toFixed(2)}ms`}</span>
+                    <span class="tbl-val">{phage.memoryMb.toFixed(1)}mb</span>
+                  </div>
+
+                  <!-- p-queue row -->
+                  {pq && (
+                    <div class="tbl-row">
+                      <span class="tbl-lib tbl-lib--dim">p-queue</span>
+                      <span class="tbl-val">{pq.jobsPerSec.toLocaleString()}</span>
+                      <span class="tbl-val">{pq.totalMs.toFixed(0)}ms</span>
+                      <span class="tbl-val">{pq.p50Ms < 1 ? `${(pq.p50Ms*1000).toFixed(0)}μs` : `${pq.p50Ms.toFixed(2)}ms`}</span>
+                      <span class="tbl-val">{pq.p99Ms < 1 ? `${(pq.p99Ms*1000).toFixed(0)}μs` : `${pq.p99Ms.toFixed(2)}ms`}</span>
+                      <span class="tbl-val">{pq.memoryMb.toFixed(1)}mb</span>
+                    </div>
+                  )}
+
+                  <!-- toad-scheduler row -->
+                  {ts && (
+                    <div class="tbl-row">
+                      <span class="tbl-lib tbl-lib--dim">toad-scheduler</span>
+                      <span class="tbl-val">{ts.jobsPerSec.toLocaleString()}</span>
+                      <span class="tbl-val">{ts.totalMs.toFixed(0)}ms</span>
+                      <span class="tbl-val">{ts.p50Ms < 1 ? `${(ts.p50Ms*1000).toFixed(0)}μs` : `${ts.p50Ms.toFixed(2)}ms`}</span>
+                      <span class="tbl-val">{ts.p99Ms < 1 ? `${(ts.p99Ms*1000).toFixed(0)}μs` : `${ts.p99Ms.toFixed(2)}ms`}</span>
+                      <span class="tbl-val">{ts.memoryMb.toFixed(1)}mb</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
+    </div>
+  </div>
+</Base>
+
+<style>
+.page { padding: 60px 0 80px; }
+.page__header { margin-bottom: 48px; }
+.page__eyebrow { font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; }
+.page__title { font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 300; color: var(--text); letter-spacing: 0.04em; margin-bottom: 14px; }
+.page__desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.8; max-width: 560px; margin-bottom: 16px; }
+
+.updated {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+}
+
+.scenario {
+  margin-bottom: 40px;
+  animation: fadeUp 0.5s ease both;
+}
+
+.scenario__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.scenario__name {
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.scenario__tags {
+  display: flex;
+  gap: 8px;
+}
+
+.scenario__table {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  overflow-x: auto;
+}
+
+.tbl-header {
+  display: grid;
+  grid-template-columns: 160px repeat(5, 1fr);
+  padding: 10px 20px;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  min-width: 600px;
+}
+
+.tbl-row {
+  display: grid;
+  grid-template-columns: 160px repeat(5, 1fr);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 0.82rem;
+  min-width: 600px;
+  transition: background 0.15s;
+}
+
+.tbl-row:last-child { border-bottom: none; }
+.tbl-row:hover { background: var(--bg-card); }
+
+.tbl-row--highlight { background: rgba(0,200,150,0.04); }
+.tbl-row--highlight:hover { background: rgba(0,200,150,0.07); }
+
+.tbl-lib {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.tbl-lib--dim { color: var(--text-muted); font-weight: 400; }
+.tbl-lib--dim .dot { display: none; }
+
+.tbl-val { color: var(--text-muted); }
+.tbl-val--primary { color: var(--green); font-weight: 500; }
+
+.empty {
+  padding: 48px 24px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-dim);
+  font-size: 0.82rem;
+}
+</style>
+
+<style is:global>
+@media (max-width: 640px) {
+  .scenario__header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .tbl-header, .tbl-row { grid-template-columns: 120px repeat(5, 1fr); font-size: 0.7rem; padding: 10px 12px; }
+}
+</style>

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+benchmarks/latest.json
+benchmarks/competitors-latest.json
+agent/archive/
+phageq-site/node_modules/
+phageq-site/dist/
+phageq-site/.astro/
+phageq-site/test-local.mjs

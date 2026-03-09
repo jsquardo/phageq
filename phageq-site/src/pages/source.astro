@@ -1,0 +1,377 @@
+---
+import Base from "../layouts/Base.astro";
+import fs from "fs";
+import path from "path";
+import { codeToHtml } from "shiki";
+
+const srcDir = path.resolve("../../src");
+let files: Array<{
+  name: string;
+  content: string;
+  lines: number;
+  highlighted: string;
+}> = [];
+
+const phageqTheme = {
+  name: "phageq",
+  type: "dark" as const,
+  colors: {
+    "editor.background": "#060E0B",
+    "editor.foreground": "#9ECFBE",
+  },
+  tokenColors: [
+    {
+      scope: ["comment", "punctuation.definition.comment"],
+      settings: { foreground: "#2E5A46" },
+    },
+    {
+      scope: ["keyword", "storage.type", "storage.modifier"],
+      settings: { foreground: "#00C896" },
+    },
+    { scope: ["keyword.operator"], settings: { foreground: "#4DDFB2" } },
+    {
+      scope: ["entity.name.type", "entity.name.class", "support.type"],
+      settings: { foreground: "#7FFFD4" },
+    },
+    {
+      scope: ["entity.name.function", "support.function", "meta.function-call"],
+      settings: { foreground: "#00E5A8" },
+    },
+    {
+      scope: ["variable", "variable.other"],
+      settings: { foreground: "#9ECFBE" },
+    },
+    { scope: ["variable.parameter"], settings: { foreground: "#B2DFCE" } },
+    { scope: ["string", "string.quoted"], settings: { foreground: "#4DDFB2" } },
+    {
+      scope: ["constant.numeric", "constant.language"],
+      settings: { foreground: "#7FFFD4" },
+    },
+    {
+      scope: ["constant.language.boolean"],
+      settings: { foreground: "#00C896" },
+    },
+    {
+      scope: ["punctuation", "meta.brace"],
+      settings: { foreground: "#3A6B55" },
+    },
+    {
+      scope: ["meta.type.annotation", "meta.type.parameters"],
+      settings: { foreground: "#00A87A" },
+    },
+    { scope: ["support.type.primitive"], settings: { foreground: "#00C896" } },
+    { scope: ["entity.name.tag"], settings: { foreground: "#00E5A8" } },
+    {
+      scope: ["import", "keyword.control.import"],
+      settings: { foreground: "#00C896" },
+    },
+  ],
+};
+
+try {
+  const fileNames = fs.readdirSync(srcDir).filter((f) => f.endsWith(".ts"));
+  for (const name of fileNames) {
+    const content = fs.readFileSync(path.join(srcDir, name), "utf8");
+    const highlighted = await codeToHtml(content, {
+      lang: "typescript",
+      theme: phageqTheme,
+    });
+    files.push({
+      name,
+      content,
+      lines: content.split("\n").length,
+      highlighted,
+    });
+  }
+} catch {}
+
+const totalLines = files.reduce((sum, f) => sum + f.lines, 0);
+
+let commits: Array<{ hash: string; msg: string; date: string }> = [];
+try {
+  const { execSync } = await import("child_process");
+  const log = execSync('git log --oneline --pretty=format:"%h|%s|%ar" -10', {
+    cwd: path.resolve("../.."),
+    encoding: "utf8",
+  });
+  commits = log
+    .trim()
+    .split("\n")
+    .map((line) => {
+      const [hash, msg, date] = line.split("|");
+      return { hash, msg, date };
+    });
+} catch {}
+---
+
+<Base title="Source">
+  <div class="page">
+    <div class="container--wide">
+      <div class="page__header fade-up">
+        <div class="page__eyebrow">// source</div>
+        <h1 class="page__title">live source code</h1>
+        <p class="page__desc">
+          This is what phageq looks like right now. Every line beyond the first
+          150 was written by the agent. Updated every cycle.
+        </p>
+        <div class="source-stats">
+          <span class="source-stat">
+            <span class="source-stat__val">{totalLines}</span>
+            <span class="source-stat__label">total lines</span>
+          </span>
+          <span class="source-stat__sep">/</span>
+          <span class="source-stat">
+            <span class="source-stat__val">{files.length}</span>
+            <span class="source-stat__label">files</span>
+          </span>
+          <span class="source-stat__sep">/</span>
+          <span class="source-stat">
+            <span class="source-stat__val">~150</span>
+            <span class="source-stat__label">seed lines</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="layout fade-up-1">
+        <div class="files">
+          {
+            files.length === 0 ? (
+              <div class="empty">
+                <p>
+                  Source not found. Make sure the site is deployed alongside the
+                  phageq repo.
+                </p>
+              </div>
+            ) : (
+              files.map((file) => (
+                <div class="file">
+                  <div class="file__header">
+                    <span class="file__name">src/{file.name}</span>
+                    <span class="file__lines">{file.lines} lines</span>
+                  </div>
+                  <div class="file__code" set:html={file.highlighted} />
+                </div>
+              ))
+            )
+          }
+        </div>
+
+        <div class="sidebar">
+          <div class="sidebar__header">recent commits</div>
+          {
+            commits.length === 0 ? (
+              <div class="sidebar__empty">no commits yet</div>
+            ) : (
+              <div class="commit-list">
+                {commits.map((commit) => (
+                  <div class="commit">
+                    <div class="commit__hash">{commit.hash}</div>
+                    <div class="commit__msg">{commit.msg}</div>
+                    <div class="commit__date">{commit.date}</div>
+                  </div>
+                ))}
+              </div>
+            )
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .page {
+    padding: 60px 0 80px;
+  }
+  .page__header {
+    margin-bottom: 40px;
+  }
+  .page__eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  .page__title {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 300;
+    color: var(--text);
+    letter-spacing: 0.04em;
+    margin-bottom: 14px;
+  }
+  .page__desc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.8;
+    max-width: 560px;
+    margin-bottom: 20px;
+  }
+
+  .source-stats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.78rem;
+  }
+  .source-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .source-stat__val {
+    color: var(--green);
+    font-weight: 500;
+  }
+  .source-stat__label {
+    color: var(--text-dim);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .source-stat__sep {
+    color: var(--text-dim);
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 768px) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+    .sidebar {
+      order: -1;
+    }
+  }
+
+  .file {
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .file__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .file__name {
+    font-size: 0.75rem;
+    color: var(--green);
+    letter-spacing: 0.06em;
+  }
+  .file__lines {
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+  }
+
+  .file__code {
+    max-height: 600px;
+    overflow-y: auto;
+    font-size: 0.76rem;
+    line-height: 1.55;
+  }
+
+  .file__code :global(pre) {
+    margin: 0 !important;
+    padding: 20px !important;
+    border-radius: 0 !important;
+    background: #060e0b !important;
+    overflow-x: auto;
+  }
+
+  .file__code :global(code) {
+    font-family: "DM Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  /* Line number gutter — optional, Shiki can add these */
+  .file__code :global(.line) {
+    display: inline-block;
+    width: 100%;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 76px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--bg-card);
+  }
+
+  .sidebar__header {
+    padding: 10px 16px;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar__empty {
+    padding: 20px 16px;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+  }
+  .commit-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .commit {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .commit:last-child {
+    border-bottom: none;
+  }
+  .commit__hash {
+    font-size: 0.68rem;
+    color: var(--green);
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+  .commit__msg {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+    margin-bottom: 4px;
+  }
+  .commit__date {
+    font-size: 0.68rem;
+    color: var(--text-dim);
+  }
+
+  .empty {
+    padding: 48px 24px;
+    text-align: center;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    color: var(--text-dim);
+    font-size: 0.82rem;
+  }
+</style>
+
+<style is:global>
+  @media (max-width: 640px) {
+    .source-stats {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .file__code {
+      font-size: 0.7rem;
+      max-height: 400px;
+    }
+  }
+</style>

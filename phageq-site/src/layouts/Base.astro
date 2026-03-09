@@ -1,0 +1,393 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "phageq",
+  description = "A task queue that rewrites itself. Autonomous. Evolving. Relentless.",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title === "phageq" ? "phageq" : `${title} — phageq`}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta name="theme-color" content="#00C896" />
+  </head>
+  <body>
+    <nav class="nav" id="nav">
+      <div class="container--wide nav__inner">
+        <a href="/" class="nav__logo">
+          <svg viewBox="0 0 200 200" class="nav__icon" aria-hidden="true">
+            <defs>
+              <radialGradient id="nG" cx="50%" cy="40%" r="55%">
+                <stop offset="0%" stop-color="#7FFFD4"></stop>
+                <stop offset="100%" stop-color="#00C896"></stop>
+              </radialGradient>
+            </defs>
+            <circle cx="100" cy="100" r="96" fill="#0D1F1A"></circle>
+            <polygon
+              points="100,38 122,50 122,74 100,86 78,74 78,50"
+              fill="#0D2B22"
+              stroke="url(#nG)"
+              stroke-width="2"></polygon>
+            <line
+              x1="100"
+              y1="38"
+              x2="100"
+              y2="86"
+              stroke="#00C896"
+              stroke-width="1"
+              opacity="0.4"></line>
+            <line
+              x1="78"
+              y1="50"
+              x2="122"
+              y2="74"
+              stroke="#00C896"
+              stroke-width="1"
+              opacity="0.4"></line>
+            <line
+              x1="122"
+              y1="50"
+              x2="78"
+              y2="74"
+              stroke="#00C896"
+              stroke-width="1"
+              opacity="0.4"></line>
+            <circle cx="100" cy="62" r="4" fill="url(#nG)"></circle>
+            <rect
+              x="88"
+              y="86"
+              width="24"
+              height="7"
+              rx="1"
+              fill="#0D2B22"
+              stroke="#00C896"
+              stroke-width="1.5"></rect>
+            <rect
+              x="94"
+              y="93"
+              width="12"
+              height="30"
+              rx="1"
+              fill="#0A1F18"
+              stroke="#00C896"
+              stroke-width="1.3"></rect>
+            <rect
+              x="87"
+              y="123"
+              width="26"
+              height="6"
+              rx="1"
+              fill="#0D2B22"
+              stroke="#00C896"
+              stroke-width="1.5"></rect>
+            <g stroke="#00C896" stroke-width="1.4" stroke-linecap="round">
+              <line x1="89" y1="129" x2="72" y2="148"></line>
+              <line x1="91" y1="129" x2="80" y2="155"></line>
+              <line x1="93" y1="129" x2="88" y2="158"></line>
+              <line x1="111" y1="129" x2="128" y2="148"></line>
+              <line x1="109" y1="129" x2="120" y2="155"></line>
+              <line x1="107" y1="129" x2="112" y2="158"></line>
+            </g>
+            <g fill="#00C896">
+              <circle cx="72" cy="149" r="2.5"></circle>
+              <circle cx="80" cy="156" r="2.5"></circle>
+              <circle cx="88" cy="159" r="2.5"></circle>
+              <circle cx="128" cy="149" r="2.5"></circle>
+              <circle cx="120" cy="156" r="2.5"></circle>
+              <circle cx="112" cy="159" r="2.5"></circle>
+            </g>
+          </svg>
+          <span class="nav__name">phageq</span>
+        </a>
+
+        <div class="nav__links">
+          <a href="/cycles">cycles</a>
+          <a href="/leaderboard">leaderboard</a>
+          <a href="/source">source</a>
+          <a href="/about">about</a>
+          <a
+            href="https://github.com/jsquardo/phageq"
+            target="_blank"
+            rel="noopener"
+            class="nav__github"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"
+              ><path
+                d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"
+              ></path></svg
+            >
+            github
+          </a>
+        </div>
+
+        <button
+          class="nav__hamburger"
+          id="hamburger"
+          aria-label="Toggle menu"
+          aria-expanded="false"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+
+      <div class="nav__mobile" id="mobileMenu" aria-hidden="true">
+        <a href="/cycles" class="nav__mobile-link">cycles</a>
+        <a href="/leaderboard" class="nav__mobile-link">leaderboard</a>
+        <a href="/source" class="nav__mobile-link">source</a>
+        <a href="/about" class="nav__mobile-link">about</a>
+        <a
+          href="https://github.com/jsquardo/phageq"
+          target="_blank"
+          rel="noopener"
+          class="nav__mobile-link nav__mobile-github"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"
+            ><path
+              d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"
+            ></path></svg
+          >
+          github ↗
+        </a>
+      </div>
+    </nav>
+
+    <script>
+      const hamburger = document.getElementById("hamburger");
+      const mobileMenu = document.getElementById("mobileMenu");
+      hamburger?.addEventListener("click", () => {
+        const isOpen = hamburger.classList.toggle("is-open");
+        mobileMenu?.classList.toggle("is-open");
+        hamburger.setAttribute("aria-expanded", String(isOpen));
+        mobileMenu?.setAttribute("aria-hidden", String(!isOpen));
+      });
+      mobileMenu?.querySelectorAll("a").forEach((link) => {
+        link.addEventListener("click", () => {
+          hamburger?.classList.remove("is-open");
+          mobileMenu.classList.remove("is-open");
+          hamburger?.setAttribute("aria-expanded", "false");
+          mobileMenu.setAttribute("aria-hidden", "true");
+        });
+      });
+    </script>
+
+    <main><slot /></main>
+
+    <footer class="footer">
+      <div class="container">
+        <div class="footer__inner">
+          <span class="footer__left"
+            ><span class="dot"></span>phageq is alive — running every 12 hours</span
+          >
+          <span class="footer__right"
+            >built by{" "}
+            <a
+              href="https://github.com/your-github-username"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              johnny.
+            </a> evolving with ai.</span
+          >
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid var(--border);
+    background: rgba(6, 14, 11, 0.92);
+    backdrop-filter: blur(12px);
+  }
+  .nav__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+  .nav__logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+    font-size: 1rem;
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
+  }
+  .nav__logo:hover {
+    opacity: 0.85;
+  }
+  .nav__icon {
+    width: 28px;
+    height: 28px;
+    filter: drop-shadow(0 0 6px rgba(0, 200, 150, 0.3));
+  }
+  .nav__name {
+    font-weight: 400;
+    letter-spacing: 0.1em;
+  }
+
+  .nav__links {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+  }
+  .nav__links a {
+    color: var(--text-muted);
+    transition: color 0.2s ease;
+  }
+  .nav__links a:hover {
+    color: var(--green);
+  }
+  .nav__github {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted) !important;
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: var(--radius);
+    transition:
+      border-color 0.2s,
+      color 0.2s !important;
+  }
+  .nav__github:hover {
+    border-color: var(--border-hover) !important;
+    color: var(--green) !important;
+  }
+
+  .nav__hamburger {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 36px;
+    height: 36px;
+    padding: 6px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color 0.2s;
+    flex-shrink: 0;
+  }
+  .nav__hamburger:hover {
+    border-color: var(--border-hover);
+  }
+  .nav__hamburger span {
+    display: block;
+    width: 100%;
+    height: 1px;
+    background: var(--text-muted);
+    transition:
+      transform 0.25s ease,
+      opacity 0.25s ease;
+    transform-origin: center;
+  }
+  .nav__hamburger.is-open span:nth-child(1) {
+    transform: translateY(6px) rotate(45deg);
+  }
+  .nav__hamburger.is-open span:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  .nav__hamburger.is-open span:nth-child(3) {
+    transform: translateY(-6px) rotate(-45deg);
+  }
+
+  .nav__mobile {
+    display: none;
+    flex-direction: column;
+    border-top: 1px solid var(--border);
+    background: rgba(6, 14, 11, 0.98);
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease;
+  }
+  .nav__mobile.is-open {
+    max-height: 400px;
+  }
+  .nav__mobile-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 24px;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    transition:
+      color 0.15s,
+      background 0.15s;
+  }
+  .nav__mobile-link:last-child {
+    border-bottom: none;
+  }
+  .nav__mobile-link:hover {
+    color: var(--green);
+    background: var(--green-dim);
+  }
+  .nav__mobile-github {
+    color: var(--text-dim) !important;
+  }
+
+  @media (max-width: 640px) {
+    .nav__links {
+      display: none;
+    }
+    .nav__hamburger {
+      display: flex;
+    }
+    .nav__mobile {
+      display: flex;
+    }
+  }
+
+  .footer {
+    margin-top: 80px;
+    border-top: 1px solid var(--border);
+    padding: 24px 0;
+  }
+  .footer__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    gap: 16px;
+  }
+  .footer__left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  @media (max-width: 480px) {
+    .footer__inner {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+  }
+</style>

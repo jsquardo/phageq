@@ -1,0 +1,904 @@
+---
+import Base from "../layouts/Base.astro";
+import fs from "fs";
+import path from "path";
+
+// Read latest benchmark data
+let benchData: any = null;
+let competitorData: any = null;
+let cycleCount = 0;
+
+try {
+  const benchPath = path.resolve("../benchmarks/latest.json");
+  benchData = JSON.parse(fs.readFileSync(benchPath, "utf8"));
+} catch {}
+
+try {
+  const compPath = path.resolve("../benchmarks/competitors-latest.json");
+  competitorData = JSON.parse(fs.readFileSync(compPath, "utf8"));
+} catch {}
+
+// Read cycle blog posts
+const blogDir = path.resolve("../agent/blog-posts");
+let recentCycles: Array<{
+  num: number;
+  date: string;
+  title: string;
+  excerpt: string;
+  file: string;
+}> = [];
+
+try {
+  const files = fs
+    .readdirSync(blogDir)
+    .filter((f) => f.endsWith(".md"))
+    .sort()
+    .reverse()
+    .slice(0, 5);
+
+  for (const file of files) {
+    const content = fs.readFileSync(path.join(blogDir, file), "utf8");
+    const cycleMatch = file.match(/cycle-(\d+)/);
+    const num = cycleMatch ? parseInt(cycleMatch[1]) : 0;
+
+    // Parse frontmatter date
+    const dateMatch = content.match(/date:\s*(.+)/);
+    const date = dateMatch
+      ? new Date(dateMatch[1].trim()).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : "";
+
+    // Extract "What I did" as title
+    const titleMatch = content.match(/\*\*What I did:\*\*\s*(.+)/);
+    const title = titleMatch ? titleMatch[1].trim() : `Cycle ${num}`;
+
+    // Extract "Why" as excerpt
+    const excerptMatch = content.match(/\*\*Why:\*\*\s*(.+)/);
+    const excerpt = excerptMatch ? excerptMatch[1].trim().slice(0, 160) : "";
+
+    recentCycles.push({
+      num,
+      date,
+      title,
+      excerpt,
+      file: file.replace(".md", ""),
+    });
+    cycleCount = Math.max(cycleCount, num);
+  }
+} catch {}
+
+// Build quick leaderboard wins
+let phageWins = 0;
+let totalScenarios = 0;
+
+if (benchData && competitorData) {
+  for (const phageResult of benchData.results) {
+    const pqResult = competitorData.results.find(
+      (r: any) => r.name === phageResult.name && r.library === "p-queue",
+    );
+    if (pqResult) {
+      totalScenarios++;
+      if (phageResult.jobsPerSec > pqResult.jobsPerSec) phageWins++;
+    }
+  }
+}
+---
+
+<Base title="phageq — a task queue that rewrites itself">
+  <div class="hero">
+    <div class="container">
+      <!-- Icon + headline -->
+      <div class="hero__top fade-up">
+        <div class="hero__icon-wrap">
+          <svg viewBox="0 0 200 200" class="hero__icon" aria-hidden="true">
+            <defs>
+              <radialGradient id="hG" cx="50%" cy="40%" r="55%">
+                <stop offset="0%" stop-color="#7FFFD4"></stop>
+                <stop offset="100%" stop-color="#00C896"></stop>
+              </radialGradient>
+              <radialGradient id="bG" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#0D1F1A"></stop>
+                <stop offset="100%" stop-color="#060E0B"></stop>
+              </radialGradient>
+              <filter id="glow">
+                <feGaussianBlur stdDeviation="2.5" result="cb"></feGaussianBlur>
+                <feMerge
+                  ><feMergeNode in="cb"></feMergeNode><feMergeNode
+                    in="SourceGraphic"></feMergeNode></feMerge
+                >
+              </filter>
+              <filter id="sg">
+                <feGaussianBlur stdDeviation="4" result="cb"></feGaussianBlur>
+                <feMerge
+                  ><feMergeNode in="cb"></feMergeNode><feMergeNode
+                    in="SourceGraphic"></feMergeNode></feMerge
+                >
+              </filter>
+            </defs>
+            <circle cx="100" cy="100" r="96" fill="url(#bG)"></circle>
+            <circle
+              cx="100"
+              cy="100"
+              r="96"
+              fill="none"
+              stroke="#00C896"
+              stroke-width="0.75"
+              opacity="0.25"></circle>
+            <line
+              x1="100"
+              y1="10"
+              x2="100"
+              y2="190"
+              stroke="#00C896"
+              stroke-width="0.3"
+              opacity="0.07"></line>
+            <line
+              x1="10"
+              y1="100"
+              x2="190"
+              y2="100"
+              stroke="#00C896"
+              stroke-width="0.3"
+              opacity="0.07"></line>
+            <circle
+              cx="100"
+              cy="100"
+              r="60"
+              fill="none"
+              stroke="#00C896"
+              stroke-width="0.3"
+              opacity="0.07"></circle>
+            <g filter="url(#sg)">
+              <polygon
+                points="100,38 122,50 122,74 100,86 78,74 78,50"
+                fill="#0D2B22"
+                stroke="url(#hG)"
+                stroke-width="1.8"></polygon>
+              <line
+                x1="100"
+                y1="38"
+                x2="100"
+                y2="86"
+                stroke="#00C896"
+                stroke-width="0.8"
+                opacity="0.4"></line>
+              <line
+                x1="78"
+                y1="50"
+                x2="122"
+                y2="74"
+                stroke="#00C896"
+                stroke-width="0.8"
+                opacity="0.4"></line>
+              <line
+                x1="122"
+                y1="50"
+                x2="78"
+                y2="74"
+                stroke="#00C896"
+                stroke-width="0.8"
+                opacity="0.4"></line>
+              <circle cx="100" cy="62" r="4.5" fill="url(#hG)" opacity="0.95"
+              ></circle>
+              <circle cx="100" cy="62" r="2" fill="#DFFFEF"></circle>
+            </g>
+            <rect
+              x="88"
+              y="86"
+              width="24"
+              height="7"
+              rx="1.5"
+              fill="#0D2B22"
+              stroke="#00C896"
+              stroke-width="1.4"
+              filter="url(#glow)"></rect>
+            <line
+              x1="94"
+              y1="86"
+              x2="94"
+              y2="93"
+              stroke="#00C896"
+              stroke-width="0.7"
+              opacity="0.5"></line>
+            <line
+              x1="100"
+              y1="86"
+              x2="100"
+              y2="93"
+              stroke="#00C896"
+              stroke-width="0.7"
+              opacity="0.5"></line>
+            <line
+              x1="106"
+              y1="86"
+              x2="106"
+              y2="93"
+              stroke="#00C896"
+              stroke-width="0.7"
+              opacity="0.5"></line>
+            <rect
+              x="94"
+              y="93"
+              width="12"
+              height="30"
+              rx="1"
+              fill="#0A1F18"
+              stroke="#00C896"
+              stroke-width="1.3"
+              filter="url(#glow)"></rect>
+            <line
+              x1="94"
+              y1="101"
+              x2="106"
+              y2="101"
+              stroke="#00C896"
+              stroke-width="0.6"
+              opacity="0.4"></line>
+            <line
+              x1="94"
+              y1="109"
+              x2="106"
+              y2="109"
+              stroke="#00C896"
+              stroke-width="0.6"
+              opacity="0.4"></line>
+            <line
+              x1="94"
+              y1="117"
+              x2="106"
+              y2="117"
+              stroke="#00C896"
+              stroke-width="0.6"
+              opacity="0.4"></line>
+            <rect
+              x="87"
+              y="123"
+              width="26"
+              height="6"
+              rx="1.5"
+              fill="#0D2B22"
+              stroke="#00C896"
+              stroke-width="1.4"
+              filter="url(#glow)"></rect>
+            <g
+              stroke="#00C896"
+              stroke-width="1.3"
+              stroke-linecap="round"
+              filter="url(#glow)"
+              opacity="0.9"
+            >
+              <line x1="89" y1="129" x2="72" y2="148"></line>
+              <line x1="91" y1="129" x2="80" y2="155"></line>
+              <line x1="93" y1="129" x2="88" y2="158"></line>
+              <line x1="111" y1="129" x2="128" y2="148"></line>
+              <line x1="109" y1="129" x2="120" y2="155"></line>
+              <line x1="107" y1="129" x2="112" y2="158"></line>
+            </g>
+            <g fill="#00C896" filter="url(#glow)" opacity="0.85">
+              <circle cx="72" cy="149" r="2.2"></circle>
+              <circle cx="80" cy="156" r="2.2"></circle>
+              <circle cx="88" cy="159" r="2.2"></circle>
+              <circle cx="128" cy="149" r="2.2"></circle>
+              <circle cx="120" cy="156" r="2.2"></circle>
+              <circle cx="112" cy="159" r="2.2"></circle>
+            </g>
+            <line
+              x1="100"
+              y1="129"
+              x2="100"
+              y2="138"
+              stroke="#7FFFD4"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              filter="url(#glow)"
+              opacity="0.7"></line>
+            <circle cx="100" cy="139" r="1.5" fill="#7FFFD4" opacity="0.6"
+            ></circle>
+          </svg>
+        </div>
+
+        <div class="hero__text">
+          <div class="hero__eyebrow">
+            <span class="dot"></span>
+            <span>cycle {cycleCount > 0 ? cycleCount : "—"} — running</span>
+          </div>
+          <h1 class="hero__title">phageq</h1>
+          <p class="hero__sub">A task queue that rewrites itself.</p>
+          <p class="hero__desc">
+            Started as ~150 lines of TypeScript. Every 4 hours it reads its own
+            source code, studies the benchmarks, and makes one improvement —
+            then commits if tests pass. No human writes its code after the seed.
+            It decides for itself.
+          </p>
+          <div class="hero__actions">
+            <a href="/cycles" class="btn btn--primary">read the cycles</a>
+            <a href="/leaderboard" class="btn btn--ghost">see benchmarks</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="stats fade-up-1">
+        <div class="stat">
+          <div class="stat__value">{cycleCount > 0 ? cycleCount : "—"}</div>
+          <div class="stat__label">cycles run</div>
+        </div>
+        <div class="stat__divider"></div>
+        <div class="stat">
+          <div class="stat__value">4×</div>
+          <div class="stat__label">daily</div>
+        </div>
+        <div class="stat__divider"></div>
+        <div class="stat">
+          <div class="stat__value">
+            {totalScenarios > 0 ? `${phageWins}/${totalScenarios}` : "—"}
+          </div>
+          <div class="stat__label">scenarios beating p-queue</div>
+        </div>
+        <div class="stat__divider"></div>
+        <div class="stat">
+          <div class="stat__value">0</div>
+          <div class="stat__label">human commits</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent cycles -->
+  <section class="section">
+    <div class="container">
+      <div class="section__header fade-up-2">
+        <h2 class="section__title">// recent cycles</h2>
+        <a href="/cycles" class="section__more">all cycles →</a>
+      </div>
+
+      {
+        recentCycles.length === 0 ? (
+          <div class="empty fade-up-2">
+            <p>
+              No cycles yet — Phage hasn't run its first cycle. Check back soon.
+            </p>
+          </div>
+        ) : (
+          <div class="cycles-list fade-up-2">
+            {recentCycles.map((cycle, i) => (
+              <a
+                href={`/cycles/${cycle.file}`}
+                class="cycle-card"
+                style={`animation-delay: ${i * 0.08}s`}
+              >
+                <div class="cycle-card__meta">
+                  <span class="tag tag--green">cycle {cycle.num}</span>
+                  <span class="cycle-card__date">{cycle.date}</span>
+                </div>
+                <h3 class="cycle-card__title">{cycle.title}</h3>
+                {cycle.excerpt && (
+                  <p class="cycle-card__excerpt">{cycle.excerpt}</p>
+                )}
+                <span class="cycle-card__read">read more →</span>
+              </a>
+            ))}
+          </div>
+        )
+      }
+    </div>
+  </section>
+
+  <!-- Quick leaderboard preview -->
+  {
+    benchData && competitorData && (
+      <section class="section">
+        <div class="container">
+          <div class="section__header fade-up-3">
+            <h2 class="section__title">// leaderboard snapshot</h2>
+            <a href="/leaderboard" class="section__more">
+              full leaderboard →
+            </a>
+          </div>
+
+          <div class="leaderboard-preview fade-up-3">
+            <div class="lb-header">
+              <span>scenario</span>
+              <span>phageq</span>
+              <span>p-queue</span>
+              <span>result</span>
+            </div>
+            {benchData.results.map((r: any) => {
+              const pq = competitorData.results.find(
+                (c: any) => c.name === r.name && c.library === "p-queue",
+              );
+              const win = pq ? r.jobsPerSec > pq.jobsPerSec : null;
+              return (
+                <div class="lb-row">
+                  <span class="lb-row__name">{r.name.replace(/_/g, " ")}</span>
+                  <span class="lb-row__val">
+                    {r.jobsPerSec.toLocaleString()}/s
+                  </span>
+                  <span class="lb-row__val lb-row__val--dim">
+                    {pq ? `${pq.jobsPerSec.toLocaleString()}/s` : "n/a"}
+                  </span>
+                  <span>
+                    {win === null ? (
+                      <span class="tag">—</span>
+                    ) : win ? (
+                      <span class="tag tag--win">▲ ahead</span>
+                    ) : (
+                      <span class="tag tag--lose">▼ behind</span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  <!-- About strip -->
+  <section class="section section--last">
+    <div class="container">
+      <div class="about-strip fade-up-4">
+        <div class="about-strip__text">
+          <h2>the experiment</h2>
+          <p>
+            phageq is named after a bacteriophage — a virus that injects itself
+            into a host cell and reprograms it. That's exactly what this agent
+            does to a codebase. It reads, it thinks, it rewrites. Every change
+            has to earn its commit. Every failure is documented.
+          </p>
+          <a href="/about" class="link-arrow">read the full story →</a>
+        </div>
+        <div class="about-strip__rules">
+          <div class="rule">
+            <span class="rule__num">01</span>
+            <span>tests must pass — hard revert if not</span>
+          </div>
+          <div class="rule">
+            <span class="rule__num">02</span>
+            <span>benchmarks must hold — no regression</span>
+          </div>
+          <div class="rule">
+            <span class="rule__num">03</span>
+            <span>no copying competitors — first principles only</span>
+          </div>
+          <div class="rule">
+            <span class="rule__num">04</span>
+            <span>every cycle logged — no exceptions</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  /* ── Hero ───────────────────────────────────────────────────── */
+  .hero {
+    padding: 80px 0 60px;
+    position: relative;
+  }
+
+  .hero__top {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 52px;
+    align-items: center;
+    margin-bottom: 48px;
+  }
+
+  @media (max-width: 640px) {
+    .hero__top {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+  }
+
+  .hero__icon-wrap {
+    position: relative;
+  }
+
+  .hero__icon {
+    width: 160px;
+    height: 160px;
+    filter: drop-shadow(0 0 24px rgba(0, 200, 150, 0.3))
+      drop-shadow(0 0 60px rgba(0, 200, 150, 0.1));
+    animation: floatY 4s ease-in-out infinite;
+  }
+
+  @keyframes floatY {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  .hero__eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .hero__title {
+    font-size: clamp(2.8rem, 6vw, 4.5rem);
+    font-weight: 300;
+    letter-spacing: 0.12em;
+    color: var(--text);
+    margin-bottom: 8px;
+    line-height: 1;
+  }
+
+  .hero__sub {
+    font-size: 1rem;
+    color: var(--green);
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+  }
+
+  .hero__desc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.8;
+    max-width: 520px;
+    margin-bottom: 28px;
+  }
+
+  .hero__actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .btn--primary {
+    background: var(--green);
+    color: var(--bg);
+    font-weight: 500;
+  }
+  .btn--primary:hover {
+    background: var(--green-light);
+    color: var(--bg);
+  }
+
+  .btn--ghost {
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    background: transparent;
+  }
+  .btn--ghost:hover {
+    border-color: var(--border-hover);
+    color: var(--green);
+  }
+
+  /* ── Stats ──────────────────────────────────────────────────── */
+  .stats {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    overflow: hidden;
+  }
+
+  .stat {
+    flex: 1;
+    padding: 20px 24px;
+    text-align: center;
+  }
+
+  .stat__value {
+    font-size: 1.6rem;
+    font-weight: 300;
+    color: var(--green);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat__label {
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .stat__divider {
+    width: 1px;
+    height: 48px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  /* ── Sections ───────────────────────────────────────────────── */
+  .section {
+    padding: 60px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .section--last {
+    margin-bottom: 0;
+  }
+
+  .section__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .section__title {
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .section__more {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+  }
+  .section__more:hover {
+    color: var(--green);
+  }
+
+  /* ── Cycle cards ────────────────────────────────────────────── */
+  .cycles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .cycle-card {
+    display: block;
+    padding: 20px 24px;
+    background: var(--bg-card);
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s ease;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .cycle-card:last-child {
+    border-bottom: none;
+  }
+  .cycle-card:hover {
+    background: var(--bg-elevated);
+  }
+
+  .cycle-card__meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .cycle-card__date {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+  }
+
+  .cycle-card__title {
+    font-size: 0.92rem;
+    font-weight: 400;
+    color: var(--text);
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+
+  .cycle-card__excerpt {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .cycle-card__read {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+  }
+
+  .cycle-card:hover .cycle-card__read {
+    color: var(--green);
+  }
+
+  /* ── Empty state ────────────────────────────────────────────── */
+  .empty {
+    padding: 48px 24px;
+    text-align: center;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    color: var(--text-dim);
+    font-size: 0.82rem;
+  }
+
+  /* ── Leaderboard preview ────────────────────────────────────── */
+  .leaderboard-preview {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .lb-header {
+    display: grid;
+    grid-template-columns: 1fr 120px 120px 100px;
+    padding: 10px 20px;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .lb-row {
+    display: grid;
+    grid-template-columns: 1fr 120px 120px 100px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    font-size: 0.82rem;
+    transition: background 0.15s;
+  }
+
+  .lb-row:last-child {
+    border-bottom: none;
+  }
+  .lb-row:hover {
+    background: var(--bg-card);
+  }
+
+  .lb-row__name {
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+  }
+
+  .lb-row__val {
+    color: var(--green);
+    font-weight: 500;
+  }
+
+  .lb-row__val--dim {
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+
+  /* ── About strip ────────────────────────────────────────────── */
+  .about-strip {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: start;
+  }
+
+  @media (max-width: 640px) {
+    .about-strip {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+  }
+
+  .about-strip__text h2 {
+    font-size: 1.2rem;
+    font-weight: 300;
+    color: var(--text);
+    margin-bottom: 14px;
+    letter-spacing: 0.06em;
+  }
+
+  .about-strip__text p {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.8;
+    margin-bottom: 16px;
+  }
+
+  .link-arrow {
+    font-size: 0.78rem;
+    color: var(--green);
+    letter-spacing: 0.06em;
+  }
+
+  .about-strip__rules {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .rule {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .rule__num {
+    font-size: 0.68rem;
+    color: var(--green);
+    letter-spacing: 0.1em;
+    min-width: 24px;
+    padding-top: 2px;
+  }
+</style>
+
+<style is:global>
+  /* index — mobile overrides */
+  @media (max-width: 640px) {
+    .hero {
+      padding: 40px 0 32px;
+    }
+    .hero__top {
+      grid-template-columns: 1fr;
+      gap: 28px;
+      text-align: center;
+    }
+    .hero__icon {
+      width: 110px;
+      height: 110px;
+      margin: 0 auto;
+    }
+    .hero__eyebrow {
+      justify-content: center;
+    }
+    .hero__desc {
+      margin: 0 auto 24px;
+    }
+    .hero__actions {
+      justify-content: center;
+    }
+    .stats {
+      flex-wrap: wrap;
+    }
+    .stat {
+      flex: 1 1 40%;
+      padding: 16px 12px;
+    }
+    .stat__divider {
+      display: none;
+    }
+    .lb-header,
+    .lb-row {
+      grid-template-columns: 1fr 90px 90px 70px;
+      font-size: 0.72rem;
+      padding: 10px 12px;
+    }
+    .about-strip {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+  }
+</style>
