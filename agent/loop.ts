@@ -28,6 +28,8 @@ const FROZEN_FILES = [
   "benchmarks/competitors.ts",
   "tests/queue.test.ts",
   "agent/loop.ts",
+  "jest.config.js",
+  "jest.config.cjs",
 ];
 
 function log(msg: string) {
