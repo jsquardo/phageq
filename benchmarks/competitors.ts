@@ -77,7 +77,7 @@ async function runToadScheduler(scenario: (typeof SCENARIOS)[number]) {
         semaphore.count--;
         completed++;
         if (completed === scenario.jobCount) resolve();
-        else tryNext();
+        else setTimeout(tryNext, 0);
       });
     }
     tryNext();

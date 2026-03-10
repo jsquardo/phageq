@@ -384,6 +384,7 @@ const html = notFound ? "" : await renderMarkdown(content);
     }
     .post-body {
       font-size: 0.84rem;
+      max-width: 100%;
     }
     .post-nav {
       flex-direction: column;
@@ -391,6 +392,15 @@ const html = notFound ? "" : await renderMarkdown(content);
     }
     .post-nav__link--next {
       text-align: left;
+    }
+    .post-body .code-block {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .post-body pre {
+      max-width: 100%;
+      overflow-x: auto;
+      white-space: pre;
     }
   }
 </style>
