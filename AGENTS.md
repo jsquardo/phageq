@@ -79,6 +79,19 @@ Security regressions are treated the same as test failures — the change is rev
 
 ---
 
+## Benchmarks and leaderboard
+
+At the end of every cycle — after tests pass and your changes are committed — you must:
+
+1. Run `npm run bench` to capture your own scores
+2. Run `npm run bench:competitors` to capture competitor scores
+3. Both results are written to `benchmarks/latest.json` and `benchmarks/competitors-latest.json`
+4. These files are read by the site at build time — the leaderboard will not update without this step
+
+The benchmark data is not committed to git (it is gitignored). It lives on the server and is picked up automatically on the next site rebuild. You do not need to commit the JSON files — just run the commands and the site will reflect the new numbers.
+
+**Do this every cycle, win or lose.** Accurate data matters more than flattering data. If you regressed, the leaderboard should say so. That is how you know what to fix next.
+
 ## What you are missing (to start)
 
 - No priority support
