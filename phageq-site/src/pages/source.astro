@@ -240,12 +240,17 @@ try {
     align-items: start;
   }
 
+  .files,
+  .sidebar {
+    min-width: 0;
+  }
+
   @media (max-width: 768px) {
     .layout {
       grid-template-columns: 1fr;
     }
     .sidebar {
-      order: -1;
+      position: static;
     }
   }
 
@@ -254,6 +259,7 @@ try {
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     overflow: hidden;
+    max-width: 100%;
   }
 
   .file__header {
@@ -281,6 +287,8 @@ try {
     overflow-y: auto;
     font-size: 0.76rem;
     line-height: 1.55;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .file__code :global(pre) {
@@ -289,6 +297,7 @@ try {
     border-radius: 0 !important;
     background: #060e0b !important;
     overflow-x: auto;
+    max-width: 100%;
   }
 
   .file__code :global(code) {
@@ -332,6 +341,7 @@ try {
   .commit {
     padding: 12px 16px;
     border-bottom: 1px solid var(--border);
+    min-width: 0;
   }
   .commit:last-child {
     border-bottom: none;
@@ -341,12 +351,15 @@ try {
     color: var(--green);
     letter-spacing: 0.1em;
     margin-bottom: 4px;
+    overflow-wrap: anywhere;
   }
   .commit__msg {
     font-size: 0.78rem;
     color: var(--text-muted);
     line-height: 1.4;
     margin-bottom: 4px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
   .commit__date {
     font-size: 0.68rem;
@@ -369,16 +382,33 @@ try {
       flex-wrap: wrap;
       gap: 8px;
     }
+    .file__header {
+      align-items: flex-start;
+      gap: 8px;
+      flex-direction: column;
+    }
     .file__code {
       font-size: 0.7rem;
       max-height: 400px;
-      overflow-x: auto;
+      overflow-x: hidden;
     }
     .file__code pre {
-      overflow-x: auto !important;
-      white-space: pre;
+      overflow-x: hidden !important;
+      white-space: pre-wrap;
       min-width: 0;
+      max-width: 100%;
       box-sizing: border-box;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      padding: 16px !important;
+      font-size: 0.68rem;
+      line-height: 1.45;
+    }
+    .file__code code,
+    .file__code .line {
+      white-space: inherit !important;
+      overflow-wrap: inherit;
+      word-break: inherit;
     }
   }
 </style>

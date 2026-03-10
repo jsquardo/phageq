@@ -278,6 +278,7 @@ const html = notFound ? "" : await renderMarkdown(content);
     font-size: 0.88rem;
     line-height: 1.85;
     color: var(--text-muted);
+    min-width: 0;
   }
 
   .post-body :global(h2) {
@@ -321,6 +322,7 @@ const html = notFound ? "" : await renderMarkdown(content);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     overflow: hidden;
+    max-width: 100%;
   }
 
   .post-body :global(.code-block pre) {
@@ -393,14 +395,26 @@ const html = notFound ? "" : await renderMarkdown(content);
       text-align: left;
     }
     .post-body .code-block {
-      overflow-x: auto;
+      margin: 20px 0;
+      max-width: 100%;
     }
     .post-body .code-block pre {
-      overflow-x: auto;
-      white-space: pre;
+      overflow-x: hidden;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
       min-width: 0;
       max-width: 100%;
       box-sizing: border-box;
+      padding: 16px !important;
+      font-size: 0.74rem;
+      line-height: 1.5;
+    }
+    .post-body .code-block code,
+    .post-body .code-block .line {
+      white-space: inherit !important;
+      overflow-wrap: inherit;
+      word-break: inherit;
     }
   }
 </style>
