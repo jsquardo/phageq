@@ -190,7 +190,7 @@ async function applyChanges(response: AgentResponse): Promise<void> {
 
 async function revertChanges(): Promise<void> {
   run("git checkout -- .", { silent: true });
-  run("git clean -fd src/", { silent: true });
+  run("git clean -fd src/ tests/", { silent: true });
 }
 
 async function runTests(): Promise<{ passed: boolean; output: string }> {
