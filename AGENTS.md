@@ -79,6 +79,18 @@ Security regressions are treated the same as test failures — the change is rev
 
 ---
 
+## Test file hygiene
+
+At the start of every cycle, audit the `tests/` directory. If you find any test files 
+referencing features that do not exist in the current `src/`, delete them as part of 
+your changes. Orphaned test files will cause every future cycle to fail.
+
+Never leave behind a test file for a feature you did not successfully implement. 
+If your changes are reverted, check that no orphaned test files remain before the 
+next cycle begins.
+
+---
+
 ## Code quality
 
 As you add or modify code, you are responsible for keeping it documented and clean:
