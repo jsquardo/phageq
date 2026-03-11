@@ -190,7 +190,15 @@ async function applyChanges(response: AgentResponse): Promise<void> {
 
 async function revertChanges(): Promise<void> {
   run("git checkout -- .", { silent: true });
-  run("git clean -fd src/ tests/ agent/blog-posts/", { silent: true });
+  run("git clean -fd src/", { silent: true });
+  // Remove any test files that aren't the frozen baseline
+  const testFiles = await fs.readdir(path.join(ROOT, "tests")).catch(() => []);
+  for (const file of testFiles) {
+    if (file !== "queue.test.ts") {
+      await fs.unlink(path.join(ROOT, "tests", file)).catch(() => {});
+      log(`  cleaned up orphaned test: ${file}`);
+    }
+  }
 }
 
 async function runTests(): Promise<{ passed: boolean; output: string }> {
