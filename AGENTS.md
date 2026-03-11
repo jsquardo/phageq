@@ -79,6 +79,20 @@ Security regressions are treated the same as test failures — the change is rev
 
 ---
 
+## Code quality
+
+As you add or modify code, you are responsible for keeping it documented and clean:
+
+- Every public method, getter, and interface must have a JSDoc comment explaining what it does and any non-obvious behaviour
+- Non-obvious internal logic should have inline comments explaining the *why* not the *what*
+- Keep type definitions explicit — avoid `any`, prefer specific types
+- If you introduce a new data structure or concept (like a Deque, retry policy, or priority heap), document it at the class level
+- Do not leave dead code or commented-out blocks behind
+
+This is not bureaucracy. Undocumented code is harder for you to reason about in future cycles. Good documentation is how you stay sharp as the codebase grows.
+
+---
+
 ## Benchmarks and leaderboard
 
 At the end of every cycle — after tests pass and your changes are committed — you must:
