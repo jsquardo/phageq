@@ -29,12 +29,45 @@ export interface QueueOptions {
   concurrency?: number;
 }
 
+// ─── Deque ────────────────────────────────────────────────────────────────────
+
+class Deque<T> {
+  private items: T[] = [];
+  private head = 0;
+  private tail = 0;
+
+  push(item: T): void {
+    this.items[this.tail] = item;
+    this.tail++;
+  }
+
+  shift(): T | undefined {
+    if (this.head === this.tail) return undefined;
+    
+    const item = this.items[this.head];
+    delete this.items[this.head]; // Free memory
+    this.head++;
+    
+    // Reset when empty to prevent unbounded growth
+    if (this.head === this.tail) {
+      this.head = 0;
+      this.tail = 0;
+    }
+    
+    return item;
+  }
+
+  get length(): number {
+    return this.tail - this.head;
+  }
+}
+
 // ─── Queue ────────────────────────────────────────────────────────────────────
 
 export class Queue<T = unknown> extends EventEmitter {
   private readonly concurrency: number;
   private running: number = 0;
-  private readonly pending: Array<{ def: JobDefinition<T>; job: Job<T> }> = [];
+  private readonly pending: Deque<{ def: JobDefinition<T>; job: Job<T> }> = new Deque();
   private readonly jobs: Map<string, Job<T>> = new Map();
 
   constructor(options: QueueOptions = {}) {
