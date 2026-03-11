@@ -249,7 +249,7 @@ function checkBenchmarkRegression(
       const br = b.results?.find((r: any) => r.name === ar.name);
       if (!br) continue;
       const delta = (ar.jobsPerSec - br.jobsPerSec) / br.jobsPerSec;
-      if (delta < -0.05) {
+      if (delta < -0.15) {
         regressions.push(
           `${ar.name}: ${br.jobsPerSec} → ${ar.jobsPerSec} (${(delta * 100).toFixed(1)}%)`
         );

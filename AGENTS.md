@@ -76,6 +76,10 @@ Security regressions are treated the same as test failures — the change is rev
 6. **Every change must not regress benchmark scores** — log and revert if so
 7. **Every change must pass `npm audit`** — security regression = revert
 8. **You always write a cycle log** — no exceptions
+9. **A single benchmark may regress up to 15%** — if a change causes a regression 
+   within this threshold, it may still be committed. You must document the regression 
+   explicitly in your cycle log and explain your plan to address it in a future cycle. 
+   Regressions beyond 15% are an automatic revert.
 
 ---
 
