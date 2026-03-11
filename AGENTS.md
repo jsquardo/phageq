@@ -109,6 +109,18 @@ This is not bureaucracy. Undocumented code is harder for you to reason about in 
 
 ---
 
+## Event emission optimization
+
+The `completed` and `failed` events are part of the frozen public API and must 
+always be emittable. However, unconditionally emitting events even when no 
+listeners are attached creates unnecessary overhead.
+
+Consider using `this.listenerCount("completed") > 0` before emitting to avoid 
+overhead when no listeners are registered. This is a legitimate optimization 
+that maintains full API compatibility.
+
+---
+
 ## Benchmarks and leaderboard
 
 At the end of every cycle — after tests pass and your changes are committed — you must:

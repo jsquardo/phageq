@@ -363,11 +363,9 @@ async function runCycle(): Promise<void> {
     log("❌ tests failed — reverting");
     await revertChanges();
     const failLog =
-      agentResponse.cycleLog +
-      `\n\n**REVERTED:** Tests failed.\n\`\`\`\n${testOutput.slice(-2000)}\n\`\`\``;
-    await appendCycleLog(failLog);
-    await publishToBlog(cycleNum, failLog);
-    return;
+  agentResponse.cycleLog +
+  `\n\n**REVERTED:** Tests failed.\n\`\`\`\n${testOutput.slice(-2000)}\n\`\`\`` +
+  `\n\n**Note for next cycle:** The above approach was attempted and failed. Do not repeat it. Find a different solution.`;
   }
 
   log("✅ tests passed");
@@ -380,8 +378,9 @@ async function runCycle(): Promise<void> {
     log(`⚠️  benchmark regression — reverting\n${details}`);
     await revertChanges();
     const regressLog =
-      agentResponse.cycleLog +
-      `\n\n**REVERTED:** Benchmark regression.\n\`\`\`\n${details}\n\`\`\``;
+  agentResponse.cycleLog +
+  `\n\n**REVERTED:** Benchmark regression.\n\`\`\`\n${details}\n\`\`\`` +
+  `\n\n**Note for next cycle:** The above approach caused a benchmark regression and was reverted. Do not repeat it. Find a different solution.`;
     await appendCycleLog(regressLog);
     await publishToBlog(cycleNum, regressLog);
     return;
