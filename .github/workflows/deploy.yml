@@ -4,16 +4,12 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'phageq-site/src/**'
-      - 'phageq-site/public/**'
-      - 'phageq-site/astro.config.mjs'
 
 jobs:
-  deploy:
+  sync:
     runs-on: ubuntu-latest
     steps:
-      - name: SSH and deploy
+      - name: Pull latest code on server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -22,6 +18,22 @@ jobs:
           script: |
             cd /var/www/phageq
             git pull
-            cd phageq-site
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: sync
+    if: |
+      contains(toJson(github.event.commits), 'phageq-site/src') ||
+      contains(toJson(github.event.commits), 'phageq-site/public') ||
+      contains(toJson(github.event.commits), 'phageq-site/astro.config')
+    steps:
+      - name: Build and restart site
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/phageq/phageq-site
             npm run build
             pm2 restart phageq-site
