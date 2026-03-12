@@ -299,6 +299,26 @@ async function publishToBlog(cycleNum: number, entry: string): Promise<void> {
   }
 }
 
+async function triggerRebuildWebhook(cycleNum: number): Promise<void> {
+  const webhookUrl = process.env.PHAGE_REBUILD_WEBHOOK;
+  if (!webhookUrl) return;
+  try {
+    await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.PHAGE_WEBHOOK_SECRET
+          ? { "x-phage-secret": process.env.PHAGE_WEBHOOK_SECRET }
+          : {}),
+      },
+      body: JSON.stringify({ cycle: cycleNum }),
+    });
+    log("rebuild webhook triggered");
+  } catch (err) {
+    log(`rebuild webhook failed: ${err}`);
+  }
+}
+
 async function updateReadmeBadge(cycleNum: number): Promise<void> {
   try {
     const readmePath = path.join(ROOT, "README.md");
@@ -363,9 +383,12 @@ async function runCycle(): Promise<void> {
     log("❌ tests failed — reverting");
     await revertChanges();
     const failLog =
-  agentResponse.cycleLog +
-  `\n\n**REVERTED:** Tests failed.\n\`\`\`\n${testOutput.slice(-2000)}\n\`\`\`` +
-  `\n\n**Note for next cycle:** The above approach was attempted and failed. Do not repeat it. Find a different solution.`;
+      agentResponse.cycleLog +
+      `\n\n**REVERTED:** Tests failed.\n\`\`\`\n${testOutput.slice(-2000)}\n\`\`\`` +
+      `\n\n**Note for next cycle:** The above approach was attempted and failed. Do not repeat it. Find a different solution.`;
+    await appendCycleLog(failLog);
+    await publishToBlog(cycleNum, failLog);
+    return;
   }
 
   log("✅ tests passed");
@@ -402,6 +425,7 @@ async function runCycle(): Promise<void> {
 
   await appendCycleLog(agentResponse.cycleLog);
   await publishToBlog(cycleNum, agentResponse.cycleLog);
+  await triggerRebuildWebhook(cycleNum);
 
   log(`\n🧬 cycle ${cycleNum} complete\n`);
 }
