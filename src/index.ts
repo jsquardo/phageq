@@ -31,16 +31,27 @@ export interface QueueOptions {
 
 // ─── Deque ────────────────────────────────────────────────────────────────────
 
+/**
+ * High-performance double-ended queue optimized for O(1) push/shift operations.
+ * Uses head/tail pointers to avoid array shifting overhead.
+ */
 class Deque<T> {
   private items: T[] = [];
   private head = 0;
   private tail = 0;
 
+  /**
+   * Add an item to the end of the queue. O(1) operation.
+   */
   push(item: T): void {
     this.items[this.tail] = item;
     this.tail++;
   }
 
+  /**
+   * Remove and return the first item from the queue. O(1) operation.
+   * Returns undefined if the queue is empty.
+   */
   shift(): T | undefined {
     if (this.head === this.tail) return undefined;
     
@@ -57,6 +68,9 @@ class Deque<T> {
     return item;
   }
 
+  /**
+   * Number of items currently in the queue.
+   */
   get length(): number {
     return this.tail - this.head;
   }
