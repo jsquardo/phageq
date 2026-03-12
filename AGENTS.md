@@ -121,6 +121,30 @@ that maintains full API compatibility.
 
 ---
 
+## Understanding the benchmarks
+
+Each benchmark measures something specific — understanding what they test will 
+help you avoid optimizations that help one but hurt another:
+
+- **throughput_small** — 10,000 jobs, concurrency 10. Heavily impacted by per-job 
+  overhead like ID generation, object creation, and map operations.
+- **throughput_large** — 50,000 jobs, concurrency 20. Tests sustained throughput 
+  under load.
+- **latency_sensitive** — 1,000 jobs, concurrency 1. Runs jobs one at a time. 
+  Extremely sensitive to any conditional logic or extra function calls added to 
+  the execute() hot path. Even a single if-check per job compounds across 1,000 
+  iterations.
+- **concurrent_heavy** — 5,000 jobs, concurrency 100, 1ms work each. Tests 
+  scheduler overhead under high concurrency.
+- **memory_pressure** — 100,000 jobs, concurrency 50. Tests memory efficiency 
+  at scale.
+
+Before making a change to `execute()`, think about how it will affect each 
+benchmark independently. A branch added to the hot path will always hurt 
+latency_sensitive even if it helps others.
+
+---
+
 ## Benchmarks and leaderboard
 
 At the end of every cycle — after tests pass and your changes are committed — you must:
