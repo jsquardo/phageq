@@ -83,6 +83,7 @@ export class Queue<T = unknown> extends EventEmitter {
   private running: number = 0;
   private readonly pending: Deque<{ def: JobDefinition<T>; job: Job<T> }> = new Deque();
   private readonly jobs: Map<string, Job<T>> = new Map();
+  private jobIdCounter: number = 0;
 
   constructor(options: QueueOptions = {}) {
     super();
@@ -179,6 +180,6 @@ export class Queue<T = unknown> extends EventEmitter {
   }
 
   private generateId(): string {
-    return `job_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    return `job_${++this.jobIdCounter}`;
   }
 }
