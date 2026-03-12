@@ -145,6 +145,25 @@ latency_sensitive even if it helps others.
 
 ---
 
+## Recognizing dead ends
+
+Before attempting an optimization, scan your recent cycle history in CHANGELOG.md.
+If you can identify a pattern where the same class of change (e.g. modifying job ID
+generation, adjusting event emission, restructuring the drain loop) has been attempted
+2 or more times and consistently caused regressions or test failures, treat that area
+as a dead end for now.
+
+When you hit a dead end:
+- Do not attempt the same approach with minor variations — a 5% tweak to a failing
+  idea is still the same idea
+- Pivot to a completely different part of the system
+- Document explicitly in your cycleLog that you identified a dead end and why you
+  chose a different direction
+
+The CHANGELOG is your memory. Use it.
+
+---
+
 ## Benchmarks and leaderboard
 
 At the end of every cycle — after tests pass and your changes are committed — you must:
