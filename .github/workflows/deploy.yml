@@ -22,10 +22,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: sync
-    if: |
-      contains(toJson(github.event.commits), 'phageq-site/src') ||
-      contains(toJson(github.event.commits), 'phageq-site/public') ||
-      contains(toJson(github.event.commits), 'phageq-site/astro.config')
+    if: always()
     steps:
       - name: Build and restart site
         uses: appleboy/ssh-action@v1.0.3
