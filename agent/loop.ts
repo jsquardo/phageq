@@ -217,6 +217,16 @@ async function runBenchmarks(): Promise<void> {
   await execAsync("npm run bench 2>&1").catch(() => {});
 }
 
+async function saveBenchmarkHistory(cycleNum: number): Promise<void> {
+  const historyDir = path.join(ROOT, "benchmarks", "history");
+  await fs.mkdir(historyDir, { recursive: true });
+  const latest = await readFile("benchmarks/latest.json");
+  if (!latest) return;
+  const filename = `cycle-${String(cycleNum).padStart(3, "0")}.json`;
+  await fs.writeFile(path.join(historyDir, filename), latest, "utf8");
+  log(`benchmark history saved: benchmarks/history/${filename}`);
+}
+
 async function runCompetitorBenchmarks(): Promise<void> {
   log("running competitor benchmarks...");
   await execAsync("npx tsx benchmarks/competitors.ts 2>&1").catch(() => {});
@@ -410,6 +420,7 @@ async function runCycle(): Promise<void> {
   }
 
   log("✅ benchmarks held");
+  await saveBenchmarkHistory(cycleNum);
 
   const { clean: auditClean } = await runAudit();
   if (!auditClean) log("⚠️  npm audit found vulnerabilities — logged");
