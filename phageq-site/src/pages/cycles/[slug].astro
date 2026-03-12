@@ -116,8 +116,197 @@ const phageqTheme = {
   ],
 };
 
+// Parses a benchmark delta line like:
+// "throughput_small: 46228 → 63134 jobs/sec (+36.6%)"
+// or "throughput_small: 46228 → measuring jobs/sec"
+// Returns structured HTML for the benchmark delta table
+function renderBenchmarkDelta(deltaText: string): string {
+  // Extract all metric lines from the raw delta text block
+  const lines = deltaText
+    .split(
+      /throughput_small:|throughput_large:|latency_sensitive:|concurrent_heavy:|memory_pressure:/,
+    )
+    .slice(1);
+
+  const metricNames = [
+    "throughput_small",
+    "throughput_large",
+    "latency_sensitive",
+    "concurrent_heavy",
+    "memory_pressure",
+  ];
+
+  const rows = lines.map((line, i) => {
+    const name = metricNames[i] ?? `metric_${i}`;
+    const clean = line.trim().replace(/\s+/g, " ");
+
+    // Check for measuring (benchmarks not yet captured)
+    if (
+      clean.includes("[measuring]") ||
+      clean.startsWith("measuring") ||
+      clean.match(/→\s*measuring/)
+    ) {
+      return `
+        <div class="bench-row">
+          <span class="bench-name">${name}</span>
+          <span class="bench-values">
+            <span class="bench-before">${clean.split("→")[0]?.trim() ?? "—"}</span>
+            <span class="bench-arrow">→</span>
+            <span class="bench-measuring">measuring</span>
+          </span>
+          <span class="bench-delta bench-delta--measuring">pending</span>
+        </div>`;
+    }
+
+    // Parse: "46228 → 63134 jobs/sec (+36.6%)"
+    const arrowMatch = clean.match(/(\d[\d,]*)\s*→\s*(\d[\d,]*)/);
+    const pctMatch = clean.match(/\(([+-][\d.]+%)\)/);
+
+    if (!arrowMatch) {
+      return `<div class="bench-row"><span class="bench-name">${name}</span><span class="bench-values bench-raw">${clean}</span></div>`;
+    }
+
+    const before = parseInt(arrowMatch[1].replace(/,/g, ""));
+    const after = parseInt(arrowMatch[2].replace(/,/g, ""));
+    const pct = pctMatch?.[1] ?? null;
+
+    // Compute pct ourselves if not in text
+    const computedPct =
+      pct ??
+      (before > 0
+        ? `${(((after - before) / before) * 100).toFixed(1)}%`
+        : null);
+    const isPositive = after >= before;
+    const deltaClass = isPositive
+      ? "bench-delta--positive"
+      : "bench-delta--negative";
+    const sign = isPositive ? "+" : "";
+    const displayPct = computedPct
+      ? computedPct.startsWith("+") || computedPct.startsWith("-")
+        ? computedPct
+        : `${sign}${computedPct}`
+      : null;
+
+    return `
+      <div class="bench-row">
+        <span class="bench-name">${name}</span>
+        <span class="bench-values">
+          <span class="bench-before">${before.toLocaleString()}</span>
+          <span class="bench-arrow">→</span>
+          <span class="bench-after ${isPositive ? "bench-after--up" : "bench-after--down"}">${after.toLocaleString()}</span>
+          <span class="bench-unit">jobs/sec</span>
+        </span>
+        ${displayPct ? `<span class="bench-delta ${deltaClass}">${displayPct}</span>` : ""}
+      </div>`;
+  });
+
+  return `<div class="bench-table">${rows.join("")}</div>`;
+}
+
+// Parses a leaderboard line like:
+// "throughput_small: phageq 54961 | p-queue 29214 | toad-scheduler 79947"
+// or "throughput_small: phageq [measuring] | p-queue 31724 | toad-scheduler 95639"
+function renderLeaderboard(leaderboardText: string): string {
+  const metricNames = [
+    "throughput_small",
+    "throughput_large",
+    "latency_sensitive",
+    "concurrent_heavy",
+    "memory_pressure",
+  ];
+
+  const rows: string[] = [];
+
+  for (const metric of metricNames) {
+    const regex = new RegExp(`${metric}:\\s*([^\\n]+)`, "i");
+    const match = leaderboardText.match(regex);
+    if (!match) continue;
+
+    const parts = match[1].split("|").map((p) => p.trim());
+    const libs = parts.map((part) => {
+      // e.g. "phageq 54961" or "phageq [measuring]" or "p-queue 29214"
+      const measuring =
+        part.includes("[measuring]") || part.includes("measuring");
+      const numMatch = part.match(/[\d,]+/);
+      const nameMatch = part.match(/^([a-z\-]+)/i);
+      const name = nameMatch?.[1] ?? part;
+      const value = measuring
+        ? null
+        : numMatch
+          ? parseInt(numMatch[0].replace(/,/g, ""))
+          : null;
+      return { name, value, measuring };
+    });
+
+    // Find winner (highest value among non-measuring)
+    const values = libs
+      .filter((l) => l.value !== null)
+      .map((l) => l.value as number);
+    const maxVal = values.length > 0 ? Math.max(...values) : null;
+
+    const libCells = libs.map((lib) => {
+      const isWinner = lib.value !== null && lib.value === maxVal;
+      const isPhage = lib.name === "phageq";
+      let cellClass = "lb-lib";
+      if (isWinner) cellClass += " lb-lib--winner";
+      if (isPhage) cellClass += " lb-lib--phage";
+
+      const displayVal = lib.measuring
+        ? `<span class="lb-measuring" title="Benchmarks run at end of cycle — check leaderboard for final numbers">—</span>`
+        : `<span class="lb-value">${lib.value?.toLocaleString()}</span>`;
+
+      return `<div class="${cellClass}">
+        <span class="lb-name">${lib.name}</span>
+        ${displayVal}
+        ${isWinner && !lib.measuring ? '<span class="lb-crown">↑</span>' : ""}
+      </div>`;
+    });
+
+    rows.push(`
+      <div class="lb-row">
+        <span class="lb-metric">${metric}</span>
+        <div class="lb-libs">${libCells.join("")}</div>
+      </div>`);
+  }
+
+  const hasMeasuring =
+    leaderboardText.includes("[measuring]") ||
+    leaderboardText.includes("measuring");
+
+  return `
+    <div class="lb-table">
+      ${rows.join("")}
+      ${hasMeasuring ? `<p class="lb-note">— scores update at end of cycle. Check the <a href="/leaderboard">leaderboard</a> for current numbers.</p>` : ""}
+    </div>`;
+}
+
+// Pre-processes markdown to replace benchmark delta and leaderboard sections
+// with styled HTML before the main renderMarkdown pass
+function preprocessBenchmarks(md: string): string {
+  // Replace **Benchmark delta:** block
+  md = md.replace(
+    /\*\*Benchmark delta:\*\*\s*([\s\S]*?)(?=\n\*\*|\n---|\n##|$)/,
+    (_, deltaBlock) => {
+      return `\n\nBENCH_DELTA_HTML\n${renderBenchmarkDelta(deltaBlock)}\nBENCH_DELTA_END\n\n`;
+    },
+  );
+
+  // Replace **Leaderboard:** block
+  md = md.replace(
+    /\*\*Leaderboard:\*\*\s*([\s\S]*?)(?=\n\*\*|\n---|\n##|$)/,
+    (_, lbBlock) => {
+      return `\n\nLEADERBOARD_HTML\n${renderLeaderboard(lbBlock)}\nLEADERBOARD_END\n\n`;
+    },
+  );
+
+  return md;
+}
+
 // Renders markdown to HTML, with Shiki syntax highlighting for fenced code blocks
 async function renderMarkdown(md: string): Promise<string> {
+  // Pre-process benchmark sections first
+  md = preprocessBenchmarks(md);
+
   // Step 1: extract and highlight all fenced code blocks first
   const highlightedBlocks: string[] = [];
   const blockMatches = [...md.matchAll(/```(\w*)\n([\s\S]*?)```/g)];
@@ -161,10 +350,24 @@ async function renderMarkdown(md: string): Promise<string> {
         const idx = parseInt(trimmed.replace("CODE_BLOCK_PLACEHOLDER_", ""));
         return highlightedBlocks[idx] ?? "";
       }
+      // Pass pre-rendered benchmark/leaderboard HTML through directly
+      if (
+        trimmed.startsWith("BENCH_DELTA_HTML") ||
+        trimmed.startsWith("LEADERBOARD_HTML")
+      ) {
+        // Extract the HTML between the markers
+        const htmlContent = trimmed
+          .replace(/^BENCH_DELTA_HTML\n/, "")
+          .replace(/\nBENCH_DELTA_END$/, "")
+          .replace(/^LEADERBOARD_HTML\n/, "")
+          .replace(/\nLEADERBOARD_END$/, "");
+        return htmlContent;
+      }
       if (
         trimmed.startsWith("<h") ||
         trimmed.startsWith("<pre") ||
-        trimmed.startsWith("<div")
+        trimmed.startsWith("<div") ||
+        trimmed.startsWith("<p class=")
       )
         return trimmed;
       return `<p>${trimmed.replace(/\n/g, " ")}</p>`;
@@ -343,6 +546,200 @@ const html = notFound ? "" : await renderMarkdown(content);
     font-family: "DM Mono", "Fira Code", monospace;
   }
 
+  /* ── Benchmark Delta Table ── */
+  .post-body :global(.bench-table) {
+    margin: 20px 0 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--bg-card);
+  }
+
+  .post-body :global(.bench-row) {
+    display: grid;
+    grid-template-columns: 160px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.78rem;
+  }
+
+  .post-body :global(.bench-row:last-child) {
+    border-bottom: none;
+  }
+
+  .post-body :global(.bench-name) {
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+    font-size: 0.72rem;
+  }
+
+  .post-body :global(.bench-values) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .post-body :global(.bench-before) {
+    color: var(--text-dim);
+  }
+
+  .post-body :global(.bench-arrow) {
+    color: var(--text-dim);
+    font-size: 0.7rem;
+  }
+
+  .post-body :global(.bench-after--up) {
+    color: var(--green);
+    font-weight: 500;
+  }
+
+  .post-body :global(.bench-after--down) {
+    color: var(--red);
+    font-weight: 500;
+  }
+
+  .post-body :global(.bench-unit) {
+    color: var(--text-dim);
+    font-size: 0.68rem;
+  }
+
+  .post-body :global(.bench-measuring) {
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  .post-body :global(.bench-delta) {
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .post-body :global(.bench-delta--positive) {
+    color: var(--green);
+    background: rgba(0, 200, 150, 0.1);
+    border: 1px solid rgba(0, 200, 150, 0.2);
+  }
+
+  .post-body :global(.bench-delta--negative) {
+    color: var(--red);
+    background: rgba(255, 92, 92, 0.1);
+    border: 1px solid rgba(255, 92, 92, 0.2);
+  }
+
+  .post-body :global(.bench-delta--measuring) {
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px solid var(--border);
+  }
+
+  .post-body :global(.bench-raw) {
+    color: var(--text-dim);
+    font-size: 0.72rem;
+  }
+
+  /* ── Leaderboard Table ── */
+  .post-body :global(.lb-table) {
+    margin: 20px 0 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--bg-card);
+  }
+
+  .post-body :global(.lb-row) {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.78rem;
+  }
+
+  .post-body :global(.lb-row:last-of-type) {
+    border-bottom: none;
+  }
+
+  .post-body :global(.lb-metric) {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+  }
+
+  .post-body :global(.lb-libs) {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .post-body :global(.lb-lib) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+
+  .post-body :global(.lb-lib--phage) {
+    border-color: rgba(0, 200, 150, 0.25);
+  }
+
+  .post-body :global(.lb-lib--winner) {
+    background: rgba(0, 200, 150, 0.08);
+    border-color: rgba(0, 200, 150, 0.35);
+  }
+
+  .post-body :global(.lb-name) {
+    color: var(--text-dim);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+  }
+
+  .post-body :global(.lb-lib--phage .lb-name) {
+    color: var(--green);
+  }
+
+  .post-body :global(.lb-value) {
+    color: var(--text);
+    font-weight: 500;
+    font-size: 0.78rem;
+  }
+
+  .post-body :global(.lb-lib--winner .lb-value) {
+    color: var(--green-light);
+  }
+
+  .post-body :global(.lb-crown) {
+    color: var(--green);
+    font-size: 0.68rem;
+  }
+
+  .post-body :global(.lb-measuring) {
+    color: var(--text-dim);
+    font-size: 0.72rem;
+  }
+
+  .post-body :global(.lb-note) {
+    font-size: 0.7rem !important;
+    color: var(--text-dim) !important;
+    padding: 10px 16px;
+    margin: 0 !important;
+    border-top: 1px solid var(--border);
+    font-style: italic;
+  }
+
+  .post-body :global(.lb-note a) {
+    color: var(--green);
+  }
+
   .post-nav {
     display: flex;
     justify-content: space-between;
@@ -415,6 +812,15 @@ const html = notFound ? "" : await renderMarkdown(content);
       white-space: inherit !important;
       overflow-wrap: inherit;
       word-break: inherit;
+    }
+    .post-body .bench-row,
+    .post-body .lb-row {
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+    .post-body .lb-libs {
+      flex-direction: column;
+      gap: 4px;
     }
   }
 </style>

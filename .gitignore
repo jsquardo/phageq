@@ -8,3 +8,4 @@ phageq-site/node_modules/
 phageq-site/dist/
 phageq-site/.astro/
 phageq-site/test-local.mjs
+benchmarks/history/
