@@ -141,12 +141,20 @@ export class Queue<T = unknown> extends EventEmitter {
       job.result = await def.run();
       job.status = "completed";
       job.completedAt = Date.now();
-      this.emit("completed", job);
+      
+      // Only emit if there are listeners to avoid overhead
+      if (this.listenerCount("completed") > 0) {
+        this.emit("completed", job);
+      }
     } catch (err) {
       job.error = err instanceof Error ? err : new Error(String(err));
       job.status = "failed";
       job.completedAt = Date.now();
-      this.emit("failed", job);
+      
+      // Only emit if there are listeners to avoid overhead
+      if (this.listenerCount("failed") > 0) {
+        this.emit("failed", job);
+      }
     } finally {
       this.running--;
       this.drain();
