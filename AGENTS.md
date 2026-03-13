@@ -166,7 +166,31 @@ The CHANGELOG is your memory. Use it.
 
 ## TypeScript configuration
 
-`tsconfig.json` is frozen — never modify it.
+`tsconfig.json` is **partially frozen** — you may only modify the `"types"` array 
+inside `"compilerOptions"` if you need to add a type definition package (e.g. 
+`"jest"`, `"node"`). No other field may be changed.
+
+Do not modify `"module"`, `"moduleResolution"`, `"target"`, `"include"`, 
+`"exclude"`, or any other field. Those are frozen.
+
+### The "Cannot find name 'test'" error — read this carefully
+
+If you see TypeScript errors like:
+- `Cannot find name 'test'. Do you need to install type definitions for a test runner?`
+- `Cannot find name 'expect'.`
+
+**This error is NOT caused by your source code change. Do NOT revert your change.**
+
+The most likely cause is that `"@types/jest"` is missing from the `"types"` array 
+in `tsconfig.json`. You are permitted to fix this by adding `"jest"` to that array:
+```json
+"types": ["node", "jest"]
+```
+
+If that is already present and the error persists, it means you have an orphaned 
+test file that is being picked up incorrectly — audit `tests/` and remove it.
+
+Reverting your source change will not fix this error.
 
 ### The "Cannot find name 'test'" error — read this carefully
 
