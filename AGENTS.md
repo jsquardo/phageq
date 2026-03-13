@@ -166,10 +166,30 @@ The CHANGELOG is your memory. Use it.
 
 ## TypeScript configuration
 
-`tsconfig.json` is frozen — never modify it. If you encounter TypeScript errors 
-about `test` or `expect` not being defined, this is not a problem you can fix. 
-The Jest types are already configured correctly. The error means something else 
-went wrong — investigate the actual source of the problem instead.
+`tsconfig.json` is frozen — never modify it.
+
+### The "Cannot find name 'test'" error — read this carefully
+
+If you see TypeScript errors like:
+- `Cannot find name 'test'. Do you need to install type definitions for a test runner?`
+- `Cannot find name 'expect'.`
+
+**This error is NOT caused by your source code change. Do NOT revert your change.**
+
+This error appears when ts-jest is attempting to type-check a file that is 
+not properly scoped to the Jest environment. The most common cause is that 
+you added a new test file that is being picked up by the TypeScript compiler 
+but is not correctly isolated. Check:
+
+1. Did you add a new test file? Make sure it only uses `describe`/`it`/`expect` 
+   from the Jest globals — do not import them explicitly.
+2. Did you accidentally leave an orphaned test file from a previous failed 
+   implementation? Delete it.
+3. The frozen test files (`tests/queue.test.ts`) already work — if only new 
+   files show this error, the problem is in the new file, not your source change.
+
+Reverting your source change will not fix this error. Investigate the test 
+files instead.
 
 ## Benchmarks and leaderboard
 
@@ -253,6 +273,29 @@ Append to `CHANGELOG.md` at the end of every cycle:
 ```
 
 ---
+
+## Keeping README.md in sync
+
+After every successful commit, review `README.md` and update it incrementally 
+to reflect any changes made this cycle:
+
+- New public API methods or options → add to the API docs table
+- Changed behavior → update the relevant description
+- New features → add a usage example in the style already present
+
+**Do not rewrite the README from scratch.** Update only what changed. The goal 
+is to keep it in sync with the current public API, not to produce a new document 
+every cycle. A full rewrite every cycle is noisy and wasteful.
+
+Keep the style consistent with what's already there — install, quick start, 
+full API reference, options table.
+
+## Known false dead ends
+The `generateId()` optimization attempted in cycle 32 (switching from template 
+literals to `String(++this.jobIdCounter)`) was reverted due to a TypeScript 
+test infrastructure error — NOT because the optimization itself was flawed. 
+The ID generation change is valid and can be reattempted. The TS error was 
+a separate issue unrelated to that change.
 
 ## Remember
 
