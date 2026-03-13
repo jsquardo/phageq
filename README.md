@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="phageq-site/public/favicon.svg" width="80" height="80" />
+  <img src="phageq-site/public/favicon.svg" height="200" />
 
   # phageq
 
