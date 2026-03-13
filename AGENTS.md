@@ -164,6 +164,13 @@ The CHANGELOG is your memory. Use it.
 
 ---
 
+## TypeScript configuration
+
+`tsconfig.json` is frozen — never modify it. If you encounter TypeScript errors 
+about `test` or `expect` not being defined, this is not a problem you can fix. 
+The Jest types are already configured correctly. The error means something else 
+went wrong — investigate the actual source of the problem instead.
+
 ## Benchmarks and leaderboard
 
 At the end of every cycle — after tests pass and your changes are committed — you must:

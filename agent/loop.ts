@@ -30,6 +30,7 @@ const FROZEN_FILES = [
   "agent/loop.ts",
   "jest.config.js",
   "jest.config.cjs",
+  "tsconfig.json",
 ];
 
 function log(msg: string) {
