@@ -226,6 +226,6 @@ export class Queue<T = unknown> extends EventEmitter {
   }
 
   private generateId(): string {
-    return `job_${++this.jobIdCounter}`;
+    return "job_" + String(++this.jobIdCounter);
   }
 }
