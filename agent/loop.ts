@@ -71,7 +71,10 @@ async function readDir(rel: string): Promise<string[]> {
 
 function getCurrentCycleNumber(): number {
   try {
-    const changelog = execSync("cat CHANGELOG.md", { cwd: ROOT, encoding: "utf8" }).toString();
+    const changelog = execSync("cat CHANGELOG.md", {
+      cwd: ROOT,
+      encoding: "utf8",
+    }).toString();
     const matches = changelog.match(/## Cycle (\d+)/g) ?? [];
     if (matches.length === 0) return 1;
     const last = matches[matches.length - 1].match(/\d+/)?.[0] ?? "0";
@@ -108,10 +111,10 @@ async function buildContext(cycleNum: number): Promise<string> {
     srcContents.push(`// src/${file}\n${content}`);
   }
 
-  const agents      = await readFile("AGENTS.md");
-  const changelog   = await readFile("CHANGELOG.md");
+  const agents = await readFile("AGENTS.md");
+  const changelog = await readFile("CHANGELOG.md");
   const benchLatest = await readFile("benchmarks/latest.json");
-  const compLatest  = await readFile("benchmarks/competitors-latest.json");
+  const compLatest = await readFile("benchmarks/competitors-latest.json");
   const auditResult = run("npm audit --json", { silent: true });
 
   let leaderboard = "No benchmark data yet.";
@@ -119,8 +122,12 @@ async function buildContext(cycleNum: number): Promise<string> {
     const phage = JSON.parse(benchLatest);
     const competitors = JSON.parse(compLatest);
     const rows = phage.results.map((r: any) => {
-      const pq = competitors.results.find((c: any) => c.name === r.name && c.library === "p-queue");
-      const ts = competitors.results.find((c: any) => c.name === r.name && c.library === "toad-scheduler");
+      const pq = competitors.results.find(
+        (c: any) => c.name === r.name && c.library === "p-queue",
+      );
+      const ts = competitors.results.find(
+        (c: any) => c.name === r.name && c.library === "toad-scheduler",
+      );
       return `  ${r.name.padEnd(22)} phageq: ${String(r.jobsPerSec).padStart(8)}/s | p-queue: ${String(pq?.jobsPerSec ?? "n/a").padStart(8)}/s | toad: ${String(ts?.jobsPerSec ?? "n/a").padStart(8)}/s`;
     });
     leaderboard = rows.join("\n");
@@ -241,7 +248,10 @@ async function runAudit(): Promise<{ clean: boolean }> {
   try {
     const parsed = JSON.parse(stdout);
     const vulns = parsed.metadata?.vulnerabilities ?? {};
-    const total = Object.values(vulns).reduce((a: any, b: any) => a + b, 0) as number;
+    const total = Object.values(vulns).reduce(
+      (a: any, b: any) => a + b,
+      0,
+    ) as number;
     return { clean: total === 0 };
   } catch {
     return { clean: true };
@@ -250,7 +260,7 @@ async function runAudit(): Promise<{ clean: boolean }> {
 
 function checkBenchmarkRegression(
   before: string,
-  after: string
+  after: string,
 ): { regressed: boolean; details: string } {
   try {
     const b = JSON.parse(before);
@@ -262,7 +272,7 @@ function checkBenchmarkRegression(
       const delta = (ar.jobsPerSec - br.jobsPerSec) / br.jobsPerSec;
       if (delta < -0.15) {
         regressions.push(
-          `${ar.name}: ${br.jobsPerSec} → ${ar.jobsPerSec} (${(delta * 100).toFixed(1)}%)`
+          `${ar.name}: ${br.jobsPerSec} → ${ar.jobsPerSec} (${(delta * 100).toFixed(1)}%)`,
         );
       }
     }
@@ -286,7 +296,7 @@ async function publishToBlog(cycleNum: number, entry: string): Promise<void> {
   await fs.writeFile(
     path.join(blogDir, filename),
     `---\ncycle: ${cycleNum}\ndate: ${new Date().toISOString()}\n---\n\n${entry}\n`,
-    "utf8"
+    "utf8",
   );
   log(`blog post written: agent/blog-posts/${filename}`);
 
@@ -336,7 +346,7 @@ async function updateReadmeBadge(cycleNum: number): Promise<void> {
     let readme = await fs.readFile(readmePath, "utf8");
     readme = readme.replace(
       /\[!\[cycles\]\(https:\/\/img\.shields\.io\/badge\/cycle-\d+-/,
-      `[![cycles](https://img.shields.io/badge/cycle-${cycleNum}-`
+      `[![cycles](https://img.shields.io/badge/cycle-${cycleNum}-`,
     );
     await fs.writeFile(readmePath, readme, "utf8");
     log(`README badge updated to cycle ${cycleNum}`);
@@ -378,7 +388,7 @@ async function runCycle(): Promise<void> {
   } catch (err) {
     log(`❌ failed to parse agent response: ${err}`);
     await appendCycleLog(
-      `## Cycle ${cycleNum} — ${cycleStart}\n\n**Result:** FAILED — could not parse agent response.`
+      `## Cycle ${cycleNum} — ${cycleStart}\n\n**Result:** FAILED — could not parse agent response.`,
     );
     return;
   }
@@ -406,18 +416,26 @@ async function runCycle(): Promise<void> {
 
   await runBenchmarks();
   const benchAfter = await readFile("benchmarks/latest.json");
-  const { regressed, details } = checkBenchmarkRegression(benchBefore, benchAfter);
+  const noCodeChanges = agentResponse.files.length === 0;
+  const { regressed, details } = checkBenchmarkRegression(
+    benchBefore,
+    benchAfter,
+  );
 
-  if (regressed) {
+  if (regressed && !noCodeChanges) {
     log(`⚠️  benchmark regression — reverting\n${details}`);
     await revertChanges();
     const regressLog =
-  agentResponse.cycleLog +
-  `\n\n**REVERTED:** Benchmark regression.\n\`\`\`\n${details}\n\`\`\`` +
-  `\n\n**Note for next cycle:** The above approach caused a benchmark regression and was reverted. Do not repeat it. Find a different solution.`;
+      agentResponse.cycleLog +
+      `\n\n**REVERTED:** Benchmark regression.\n\`\`\`\n${details}\n\`\`\`` +
+      `\n\n**Note for next cycle:** The above approach caused a benchmark regression and was reverted. Do not repeat it. Find a different solution.`;
     await appendCycleLog(regressLog);
     await publishToBlog(cycleNum, regressLog);
     return;
+  } else if (regressed && noCodeChanges) {
+    log(
+      `⚠️  benchmark variance detected on measurement-only cycle — not reverting (no code changes)`,
+    );
   }
 
   log("✅ benchmarks held");

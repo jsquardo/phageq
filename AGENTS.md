@@ -164,6 +164,28 @@ The CHANGELOG is your memory. Use it.
 
 ---
 
+## Benchmark variance and noise
+
+Benchmarks are not perfectly stable. A single re-run of the same code can
+produce results that differ by 10–20% due to system load, GC timing, and
+Node.js JIT warmup — especially on `latency_sensitive` which only runs 1,000
+jobs and is extremely sensitive to any background noise.
+
+Rules for interpreting benchmark results:
+
+- **Never treat a benchmark-only cycle (no code changes) as a regression.**
+  If you made no changes to `src/`, there is nothing to revert. Variance in
+  a measurement-only cycle is just noise.
+- **`latency_sensitive` is the noisiest benchmark.** A 15–20% swing on this
+  benchmark alone, with no regression on others, is likely noise — not a real
+  regression. Use it as a signal only when corroborated by other benchmarks
+  also moving in the same direction.
+- **A real regression shows up across multiple benchmarks simultaneously.**
+  If `throughput_small`, `throughput_large`, and `concurrent_heavy` all drop,
+  that's a real regression. If only `latency_sensitive` drops, be skeptical.
+
+  ---
+
 ## The difference between a dead end and a bug
 
 The "Note for next cycle: do not repeat this" flag means the *approach* failed —
