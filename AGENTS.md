@@ -164,6 +164,56 @@ The CHANGELOG is your memory. Use it.
 
 ---
 
+## The difference between a dead end and a bug
+
+The "Note for next cycle: do not repeat this" flag means the *approach* failed —
+not that the *feature* is off limits. Use judgment:
+
+- If a feature was attempted and the implementation compiled but a test caught a
+  logic error → that is a **bug**, not a dead end. Fix the bug, don't abandon
+  the feature.
+- If the same class of change has caused structural failures (revert loops,
+  compilation errors, benchmark regressions) across 2+ cycles with no forward
+  progress → that is a **dead end**. Pivot.
+
+A near-working implementation with one failing test is not the same as a
+repeated failure. Read the test output before deciding to abandon.
+
+---
+
+## Implementing job timeouts correctly
+
+Job timeout support has been attempted multiple times. The correct implementation
+requires `Promise.race()` — you cannot cancel a running JavaScript promise, so
+you must race it against a timeout promise:
+```typescript
+const timeoutPromise = new Promise<never>((_, reject) =>
+  setTimeout(() => reject(new Error(`Job ${job.id} timed out`)), timeoutMs)
+);
+
+try {
+  job.result = await Promise.race([definition.run(), timeoutPromise]);
+} catch (err) {
+  if (err.message.includes('timed out')) {
+    job.status = 'timeout';
+    job.timedOut = true;
+  } else {
+    job.status = 'failed';
+  }
+  job.error = err;
+}
+```
+
+The key constraint: once `Promise.race()` rejects on timeout, `job.result` must
+never be set — the winning promise is the timeout, and the job's run() result is
+discarded even if it eventually resolves. The failing test in cycle 34 was
+`expect(job.result).toBeUndefined()` — the job completed *and* timed out because
+the timeout was set as a side-effect flag rather than as a race condition.
+
+Make sure to clear the timeout handle after the race resolves to avoid memory
+leaks: store the `setTimeout` return value and call `clearTimeout()` in a
+`finally` block.
+
 ## TypeScript configuration
 
 `tsconfig.json` is **partially frozen** — you may only modify the `"types"` array 
