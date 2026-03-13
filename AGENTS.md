@@ -76,21 +76,21 @@ Security regressions are treated the same as test failures — the change is rev
 6. **Every change must not regress benchmark scores** — log and revert if so
 7. **Every change must pass `npm audit`** — security regression = revert
 8. **You always write a cycle log** — no exceptions
-9. **A single benchmark may regress up to 15%** — if a change causes a regression 
-   within this threshold, it may still be committed. You must document the regression 
-   explicitly in your cycle log and explain your plan to address it in a future cycle. 
+9. **A single benchmark may regress up to 15%** — if a change causes a regression
+   within this threshold, it may still be committed. You must document the regression
+   explicitly in your cycle log and explain your plan to address it in a future cycle.
    Regressions beyond 15% are an automatic revert.
 
 ---
 
 ## Test file hygiene
 
-At the start of every cycle, audit the `tests/` directory. If you find any test files 
-referencing features that do not exist in the current `src/`, delete them as part of 
+At the start of every cycle, audit the `tests/` directory. If you find any test files
+referencing features that do not exist in the current `src/`, delete them as part of
 your changes. Orphaned test files will cause every future cycle to fail.
 
-Never leave behind a test file for a feature you did not successfully implement. 
-If your changes are reverted, check that no orphaned test files remain before the 
+Never leave behind a test file for a feature you did not successfully implement.
+If your changes are reverted, check that no orphaned test files remain before the
 next cycle begins.
 
 ---
@@ -111,36 +111,36 @@ This is not bureaucracy. Undocumented code is harder for you to reason about in 
 
 ## Event emission optimization
 
-The `completed` and `failed` events are part of the frozen public API and must 
-always be emittable. However, unconditionally emitting events even when no 
+The `completed` and `failed` events are part of the frozen public API and must
+always be emittable. However, unconditionally emitting events even when no
 listeners are attached creates unnecessary overhead.
 
-Consider using `this.listenerCount("completed") > 0` before emitting to avoid 
-overhead when no listeners are registered. This is a legitimate optimization 
+Consider using `this.listenerCount("completed") > 0` before emitting to avoid
+overhead when no listeners are registered. This is a legitimate optimization
 that maintains full API compatibility.
 
 ---
 
 ## Understanding the benchmarks
 
-Each benchmark measures something specific — understanding what they test will 
+Each benchmark measures something specific — understanding what they test will
 help you avoid optimizations that help one but hurt another:
 
-- **throughput_small** — 10,000 jobs, concurrency 10. Heavily impacted by per-job 
+- **throughput_small** — 10,000 jobs, concurrency 10. Heavily impacted by per-job
   overhead like ID generation, object creation, and map operations.
-- **throughput_large** — 50,000 jobs, concurrency 20. Tests sustained throughput 
+- **throughput_large** — 50,000 jobs, concurrency 20. Tests sustained throughput
   under load.
-- **latency_sensitive** — 1,000 jobs, concurrency 1. Runs jobs one at a time. 
-  Extremely sensitive to any conditional logic or extra function calls added to 
-  the execute() hot path. Even a single if-check per job compounds across 1,000 
+- **latency_sensitive** — 1,000 jobs, concurrency 1. Runs jobs one at a time.
+  Extremely sensitive to any conditional logic or extra function calls added to
+  the execute() hot path. Even a single if-check per job compounds across 1,000
   iterations.
-- **concurrent_heavy** — 5,000 jobs, concurrency 100, 1ms work each. Tests 
+- **concurrent_heavy** — 5,000 jobs, concurrency 100, 1ms work each. Tests
   scheduler overhead under high concurrency.
-- **memory_pressure** — 100,000 jobs, concurrency 50. Tests memory efficiency 
+- **memory_pressure** — 100,000 jobs, concurrency 50. Tests memory efficiency
   at scale.
 
-Before making a change to `execute()`, think about how it will affect each 
-benchmark independently. A branch added to the hot path will always hurt 
+Before making a change to `execute()`, think about how it will affect each
+benchmark independently. A branch added to the hot path will always hurt
 latency_sensitive even if it helps others.
 
 ---
@@ -183,9 +183,8 @@ repeated failure. Read the test output before deciding to abandon.
 
 ## Implementing job timeouts correctly
 
-Job timeout support has been attempted multiple times. The correct implementation
-requires `Promise.race()` — you cannot cancel a running JavaScript promise, so
-you must race it against a timeout promise:
+Job timeout support was successfully implemented in cycle 35 using `Promise.race()`.
+If you need to modify or extend the timeout system, the core pattern must be preserved:
 ```typescript
 const timeoutPromise = new Promise<never>((_, reject) =>
   setTimeout(() => reject(new Error(`Job ${job.id} timed out`)), timeoutMs)
@@ -204,23 +203,18 @@ try {
 }
 ```
 
-The key constraint: once `Promise.race()` rejects on timeout, `job.result` must
-never be set — the winning promise is the timeout, and the job's run() result is
-discarded even if it eventually resolves. The failing test in cycle 34 was
-`expect(job.result).toBeUndefined()` — the job completed *and* timed out because
-the timeout was set as a side-effect flag rather than as a race condition.
+Key constraint: once `Promise.race()` rejects on timeout, `job.result` must never
+be set. Always clear the timeout handle in a `finally` block to avoid memory leaks.
 
-Make sure to clear the timeout handle after the race resolves to avoid memory
-leaks: store the `setTimeout` return value and call `clearTimeout()` in a
-`finally` block.
+---
 
 ## TypeScript configuration
 
-`tsconfig.json` is **partially frozen** — you may only modify the `"types"` array 
-inside `"compilerOptions"` if you need to add a type definition package (e.g. 
+`tsconfig.json` is **partially frozen** — you may only modify the `"types"` array
+inside `"compilerOptions"` if you need to add a type definition package (e.g.
 `"jest"`, `"node"`). No other field may be changed.
 
-Do not modify `"module"`, `"moduleResolution"`, `"target"`, `"include"`, 
+Do not modify `"module"`, `"moduleResolution"`, `"target"`, `"include"`,
 `"exclude"`, or any other field. Those are frozen.
 
 ### The "Cannot find name 'test'" error — read this carefully
@@ -231,39 +225,18 @@ If you see TypeScript errors like:
 
 **This error is NOT caused by your source code change. Do NOT revert your change.**
 
-The most likely cause is that `"@types/jest"` is missing from the `"types"` array 
+The most likely cause is that `"@types/jest"` is missing from the `"types"` array
 in `tsconfig.json`. You are permitted to fix this by adding `"jest"` to that array:
 ```json
 "types": ["node", "jest"]
 ```
 
-If that is already present and the error persists, it means you have an orphaned 
-test file that is being picked up incorrectly — audit `tests/` and remove it.
+If that is already present and the error persists, you have an orphaned test file
+that is being picked up incorrectly — audit `tests/` and remove it.
 
 Reverting your source change will not fix this error.
 
-### The "Cannot find name 'test'" error — read this carefully
-
-If you see TypeScript errors like:
-- `Cannot find name 'test'. Do you need to install type definitions for a test runner?`
-- `Cannot find name 'expect'.`
-
-**This error is NOT caused by your source code change. Do NOT revert your change.**
-
-This error appears when ts-jest is attempting to type-check a file that is 
-not properly scoped to the Jest environment. The most common cause is that 
-you added a new test file that is being picked up by the TypeScript compiler 
-but is not correctly isolated. Check:
-
-1. Did you add a new test file? Make sure it only uses `describe`/`it`/`expect` 
-   from the Jest globals — do not import them explicitly.
-2. Did you accidentally leave an orphaned test file from a previous failed 
-   implementation? Delete it.
-3. The frozen test files (`tests/queue.test.ts`) already work — if only new 
-   files show this error, the problem is in the new file, not your source change.
-
-Reverting your source change will not fix this error. Investigate the test 
-files instead.
+---
 
 ## Benchmarks and leaderboard
 
@@ -274,20 +247,67 @@ At the end of every cycle — after tests pass and your changes are committed �
 3. Both results are written to `benchmarks/latest.json` and `benchmarks/competitors-latest.json`
 4. These files are read by the site at build time — the leaderboard will not update without this step
 
-The benchmark data is not committed to git (it is gitignored). It lives on the server and is picked up automatically on the next site rebuild. You do not need to commit the JSON files — just run the commands and the site will reflect the new numbers.
+The benchmark data is not committed to git (it is gitignored). It lives on the server
+and is picked up automatically on the next site rebuild. You do not need to commit the
+JSON files — just run the commands and the site will reflect the new numbers.
 
-**Do this every cycle, win or lose.** Accurate data matters more than flattering data. If you regressed, the leaderboard should say so. That is how you know what to fix next.
+**Do this every cycle, win or lose.** Accurate data matters more than flattering data.
+If you regressed, the leaderboard should say so. That is how you know what to fix next.
 
-## What you are missing (to start)
+---
+
+## Keeping README.md in sync
+
+README.md must be updated every cycle that adds or changes public API. This is
+not optional — include it in your `files` array alongside your source changes.
+
+The README is the primary interface between this library and its users. Model it
+after p-queue's README structure:
+
+1. **Install** — `npm install phageq`
+2. **Quick start** — a minimal working example, ~10 lines
+3. **API reference** — every public method and option, with types and descriptions
+4. **Options table** — a markdown table of all `QueueOptions` and `JobDefinition`
+   fields: name, type, default, description
+5. **Events** — list every emitted event (`completed`, `failed`, `idle`, `timeout`,
+   etc.) with the payload type and when it fires
+6. **Examples** — short focused examples for non-obvious features (timeouts,
+   onIdle, metadata, etc.)
+
+Rules:
+- Update incrementally — do not rewrite from scratch every cycle
+- Add new sections when you add new features; update existing ones when behavior changes
+- Keep examples runnable — no pseudocode, no placeholder values
+- If you add a feature this cycle, its documentation must land in the same commit
+
+---
+
+## What you have built so far
+
+- ✅ Core queue with concurrency control (seed)
+- ✅ Job lifecycle tracking — pending, running, completed, failed (seed)
+- ✅ `onIdle()`, `activeCount`, `pendingCount`, `size` (seed)
+- ✅ `completed`, `failed`, `idle` events (seed)
+- ✅ Job timeout support with `Promise.race()` (cycle 35)
+
+## What you are still missing
 
 - No priority support
 - No retry logic
 - No rate limiting
 - No pause / resume
-- No job timeouts
 - No metrics or observability
 - No job dependencies
 - No persistence
+
+---
+
+## Known false dead ends
+
+The `generateId()` optimization (switching from template literals to
+`String(++this.jobIdCounter)`) was reverted in cycles 32–33 due to a TypeScript
+infrastructure error — NOT because the optimization was flawed. It is valid and
+can be reattempted now that the tsconfig `types` issue is resolved.
 
 ---
 
@@ -317,7 +337,6 @@ account of what happened.
 ## Cycle log format
 
 Append to `CHANGELOG.md` at the end of every cycle:
-
 ```
 ## Cycle N — YYYY-MM-DD HH:MM:SS
 
@@ -347,29 +366,6 @@ Append to `CHANGELOG.md` at the end of every cycle:
 ```
 
 ---
-
-## Keeping README.md in sync
-
-After every successful commit, review `README.md` and update it incrementally 
-to reflect any changes made this cycle:
-
-- New public API methods or options → add to the API docs table
-- Changed behavior → update the relevant description
-- New features → add a usage example in the style already present
-
-**Do not rewrite the README from scratch.** Update only what changed. The goal 
-is to keep it in sync with the current public API, not to produce a new document 
-every cycle. A full rewrite every cycle is noisy and wasteful.
-
-Keep the style consistent with what's already there — install, quick start, 
-full API reference, options table.
-
-## Known false dead ends
-The `generateId()` optimization attempted in cycle 32 (switching from template 
-literals to `String(++this.jobIdCounter)`) was reverted due to a TypeScript 
-test infrastructure error — NOT because the optimization itself was flawed. 
-The ID generation change is valid and can be reattempted. The TS error was 
-a separate issue unrelated to that change.
 
 ## Remember
 
