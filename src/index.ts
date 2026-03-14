@@ -96,6 +96,7 @@ export class Queue<T = unknown> extends EventEmitter {
   private readonly pending: Deque<{ def: JobDefinition<T>; job: Job<T> }> = new Deque();
   private readonly jobs: Map<string, Job<T>> = new Map();
   private jobIdCounter: number = 0;
+  private createdAtCounter: number = 0;
 
   constructor(options: QueueOptions = {}) {
     super();
@@ -111,7 +112,7 @@ export class Queue<T = unknown> extends EventEmitter {
       id: definition.id ?? this.generateId(),
       status: "pending",
       meta: definition.meta ?? {},
-      createdAt: Date.now(),
+      createdAt: ++this.createdAtCounter,
       timeout: definition.timeout ?? this.defaultTimeout,
     };
 
