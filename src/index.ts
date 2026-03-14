@@ -166,22 +166,27 @@ export class Queue<T = unknown> extends EventEmitter {
     job.status = "running";
     job.startedAt = Date.now();
 
-    let timeoutHandle: NodeJS.Timeout | undefined;
-
     try {
-      if (job.timeout) {
-        // Create timeout promise that rejects
+      // Fast path: no timeout configured
+      if (!job.timeout) {
+        job.result = await def.run();
+      } else {
+        // Slow path: timeout configured, use Promise.race()
+        let timeoutHandle: NodeJS.Timeout | undefined;
+        
         const timeoutPromise = new Promise<never>((_, reject) => {
           timeoutHandle = setTimeout(() => {
             reject(new Error(`Job ${job.id} timed out after ${job.timeout!.timeoutMs}ms`));
           }, job.timeout!.timeoutMs);
         });
 
-        // Race the job against the timeout
-        job.result = await Promise.race([def.run(), timeoutPromise]);
-      } else {
-        // No timeout - run normally
-        job.result = await def.run();
+        try {
+          job.result = await Promise.race([def.run(), timeoutPromise]);
+        } finally {
+          if (timeoutHandle) {
+            clearTimeout(timeoutHandle);
+          }
+        }
       }
 
       job.status = "completed";
@@ -212,11 +217,6 @@ export class Queue<T = unknown> extends EventEmitter {
         this.emit("failed", job);
       }
     } finally {
-      // Clear timeout to prevent memory leaks
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-      }
-      
       this.running--;
       this.drain();
       if (this.running === 0 && this.pending.length === 0) {
