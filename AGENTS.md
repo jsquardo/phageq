@@ -168,22 +168,38 @@ The CHANGELOG is your memory. Use it.
 
 Benchmarks are not perfectly stable. A single re-run of the same code can
 produce results that differ by 10–20% due to system load, GC timing, and
-Node.js JIT warmup — especially on `latency_sensitive` which only runs 1,000
-jobs and is extremely sensitive to any background noise.
+Node.js JIT warmup — especially on `latency_sensitive` (1,000 jobs) and
+`concurrent_heavy` (high concurrency, short work) which are the noisiest.
 
-Rules for interpreting benchmark results:
+### Rules for interpreting benchmark results
 
 - **Never treat a benchmark-only cycle (no code changes) as a regression.**
   If you made no changes to `src/`, there is nothing to revert. Variance in
   a measurement-only cycle is just noise.
-- **`latency_sensitive` is the noisiest benchmark.** A 15–20% swing on this
-  benchmark alone, with no regression on others, is likely noise — not a real
-  regression. Use it as a signal only when corroborated by other benchmarks
-  also moving in the same direction.
+- **`latency_sensitive` and `concurrent_heavy` are the noisiest benchmarks.**
+  A 15–30% swing on these alone, with no corroborating movement on
+  `throughput_small` or `throughput_large`, is noise — not a real regression.
 - **A real regression shows up across multiple benchmarks simultaneously.**
-  If `throughput_small`, `throughput_large`, and `concurrent_heavy` all drop,
-  that's a real regression. If only `latency_sensitive` drops, be skeptical.
+  If `throughput_small`, `throughput_large`, and `concurrent_heavy` all drop
+  together after a code change, that's real. One benchmark dropping in isolation
+  is almost always noise.
+- **When two measurement cycles produce inconsistent results, take the higher
+  of the two as your baseline and move on.** Do not run a third measurement.
+  More measurements do not reduce noise — they just burn cycles.
 
+### The consecutive measurement rule — this is mandatory
+
+**You may never run two consecutive measurement-only cycles.**
+
+If the previous cycle had no code changes (`files` was empty), you must make
+a real code change this cycle. No exceptions. If you are uncertain which
+direction to go, pick the highest-confidence optimization you can reason to
+from first principles and ship it. A imperfect change that gets reverted is
+more useful than another measurement cycle — at minimum it gives you real
+signal.
+
+Wasting cycles on re-measurement is the failure mode. Benchmarks are noisy.
+Accept that and act.
   ---
 
 ## The difference between a dead end and a bug
