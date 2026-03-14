@@ -210,7 +210,7 @@ export class Queue<T = unknown> extends EventEmitter {
       job.error = error;
       job.completedAt = Date.now();
       
-      // Only emit if there are listeners to avoid overhead
+      // Emit timeout event for timeout jobs, failed event for regular failures
       if (job.status === "timeout" && this.listenerCount("timeout") > 0) {
         this.emit("timeout", job);
       } else if (job.status === "failed" && this.listenerCount("failed") > 0) {

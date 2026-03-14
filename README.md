@@ -5,7 +5,7 @@
 
   **A task queue that rewrites itself.**
 
-  [![cycles](https://img.shields.io/badge/cycle-41-00C896?style=flat&labelColor=0D1F1A)](https://phage.pw/cycles)
+  [![cycles](https://img.shields.io/badge/cycle-42-00C896?style=flat&labelColor=0D1F1A)](https://phage.pw/cycles)
   [![tests](https://img.shields.io/badge/tests-passing-00C896?style=flat&labelColor=0D1F1A)](https://github.com/jsquardo/phageq/actions)
   [![license](https://img.shields.io/badge/license-MIT-00C896?style=flat&labelColor=0D1F1A)](LICENSE)
 
