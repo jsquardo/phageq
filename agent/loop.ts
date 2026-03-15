@@ -244,15 +244,48 @@ async function revertChanges(): Promise<void> {
   }
 }
 
-async function runTests(): Promise<{ passed: boolean; output: string }> {
+async function runTests(): Promise<{
+  passed: boolean;
+  output: string;
+  failureReason?: string;
+}> {
   log("running tests...");
   const { stdout, stderr } = await execAsync("npm test 2>&1").catch((err) => ({
     stdout: err.stdout ?? "",
     stderr: err.stderr ?? "",
   }));
   const output = stdout + stderr;
-  const passed = output.includes("Tests:") && !output.includes("failed");
-  return { passed, output };
+
+  // Look for the Jest summary line: "Tests: X failed, Y passed, Z total"
+  // or "Tests: X passed, Y total" (all passing)
+  const testsLine = output.match(/^Tests:\s+(.+)$/m);
+  const suitesLine = output.match(/^Test Suites:\s+(.+)$/m);
+
+  if (!testsLine) {
+    // No Jest summary found — likely a compile error or Jest didn't run at all
+    return {
+      passed: false,
+      output,
+      failureReason:
+        "Jest did not produce a test summary — likely a TypeScript compile error",
+    };
+  }
+
+  const hasFailedTests = /\d+\s+failed/.test(testsLine[1]);
+  const hasFailedSuites = suitesLine
+    ? /\d+\s+failed/.test(suitesLine[1])
+    : false;
+
+  if (hasFailedTests || hasFailedSuites) {
+    return {
+      passed: false,
+      output,
+      failureReason: `Test failures detected: ${testsLine[1]}`,
+    };
+  }
+
+  // All good — tests ran and nothing failed
+  return { passed: true, output };
 }
 
 async function runBenchmarks(): Promise<void> {
@@ -456,15 +489,31 @@ async function runCycle(): Promise<void> {
 
   await applyChanges(agentResponse);
 
-  const { passed: testsPassed, output: testOutput } = await runTests();
+  const {
+    passed: testsPassed,
+    output: testOutput,
+    failureReason,
+  } = await runTests();
 
   if (!testsPassed) {
-    log("❌ tests failed — reverting");
+    log(`❌ tests failed — reverting (${failureReason ?? "unknown reason"})`);
     await revertChanges();
+
+    // Distinguish compile errors (approach may still be valid, just has a type bug)
+    // from test assertion failures (logic error in the approach itself)
+    const isCompileError =
+      failureReason?.includes("compile error") ||
+      testOutput.includes("error TS") ||
+      !testOutput.includes("Tests:");
+
+    const nextCycleNote = isCompileError
+      ? `**Note for next cycle:** The above approach failed due to a TypeScript compile error, not a logic problem. The approach itself may still be valid — review the compile error carefully and fix the type issue rather than abandoning the approach entirely.`
+      : `**Note for next cycle:** The above approach failed due to test assertion failures. Review the failing tests carefully — if the logic error is fixable, fix it. Only abandon the approach if the core idea is fundamentally incompatible with the existing test suite.`;
+
     const failLog =
       agentResponse.cycleLog +
       `\n\n**REVERTED:** Tests failed.\n\`\`\`\n${testOutput.slice(-2000)}\n\`\`\`` +
-      `\n\n**Note for next cycle:** The above approach was attempted and failed. Do not repeat it. Find a different solution.`;
+      `\n\n${nextCycleNote}`;
     await appendCycleLog(failLog);
     await publishToBlog(cycleNum, failLog);
     await setLastCycleHadChanges(hadCodeChanges);
@@ -487,7 +536,7 @@ async function runCycle(): Promise<void> {
     const regressLog =
       agentResponse.cycleLog +
       `\n\n**REVERTED:** Benchmark regression.\n\`\`\`\n${details}\n\`\`\`` +
-      `\n\n**Note for next cycle:** The above approach caused a benchmark regression and was reverted. Do not repeat it. Find a different solution.`;
+      `\n\n**Note for next cycle:** The above approach caused a benchmark regression and was reverted. Benchmark regressions are often caused by adding overhead to the hot path — review what changed in execute() or add() and consider whether the overhead can be made conditional (only paying the cost when the feature is actually used).`;
     await appendCycleLog(regressLog);
     await publishToBlog(cycleNum, regressLog);
     await setLastCycleHadChanges(false);
