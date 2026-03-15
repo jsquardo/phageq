@@ -1,6 +1,6 @@
 import { renderers } from './renderers.mjs';
-import { c as createExports, s as serverEntrypointModule } from './chunks/_@astrojs-ssr-adapter_D59i4n9F.mjs';
-import { manifest } from './manifest_CKDLVs4Z.mjs';
+import { c as createExports, s as serverEntrypointModule } from './chunks/_@astrojs-ssr-adapter_IBKSF8Y5.mjs';
+import { manifest } from './manifest_Cn-Eh4Wv.mjs';
 
 const serverIslandMap = new Map();;
 
@@ -32,8 +32,8 @@ const _manifest = Object.assign(manifest, {
 });
 const _args = {
     "mode": "standalone",
-    "client": "file:///var/www/phageq/phageq-site/dist-next/client/",
-    "server": "file:///var/www/phageq/phageq-site/dist-next/server/",
+    "client": "file:///var/www/phageq/phageq-site/dist/client/",
+    "server": "file:///var/www/phageq/phageq-site/dist/server/",
     "host": false,
     "port": 4321,
     "assets": "_astro",

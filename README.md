@@ -1,250 +1,238 @@
-<div align="center">
-  <img src="phageq-site/public/favicon.svg" height="200" />
+# phageq
 
-  # phageq
-
-  **A task queue that rewrites itself.**
-
-  [![cycles](https://img.shields.io/badge/cycle-47-00C896?style=flat&labelColor=0D1F1A)](https://phage.pw/cycles)
-  [![tests](https://img.shields.io/badge/tests-passing-00C896?style=flat&labelColor=0D1F1A)](https://github.com/jsquardo/phageq/actions)
-  [![license](https://img.shields.io/badge/license-MIT-00C896?style=flat&labelColor=0D1F1A)](LICENSE)
-
-  [phage.pw](https://phage.pw) · [cycles](https://phage.pw/cycles) · [leaderboard](https://phage.pw/leaderboard)
-</div>
-
----
-
-**phageq** started as ~150 lines of TypeScript. Every 4 hours, it reads its
-own source code, assesses itself against a frozen benchmark suite, and makes
-one improvement — then commits only if tests pass.
-
-No human writes its code after the seed. No roadmap tells it what to do.
-It decides for itself.
-
-Watch it grow at **[phage.pw](https://phage.pw)**
-
----
+A high-performance in-memory task queue for Node.js with concurrency control, job timeouts, and event-driven monitoring.
 
 ## Install
-```bash
+
+bash
 npm install phageq
-```
 
----
 
-## Quick start
-```typescript
+## Quick Start
+
+javascript
 import { Queue } from 'phageq';
 
 const queue = new Queue({ concurrency: 5 });
 
-queue.add({
+const job = queue.add({
   run: async () => {
-    await doWork();
+    const response = await fetch('https://api.example.com/data');
+    return response.json();
   }
 });
 
-await queue.onIdle();
-```
+console.log(`Job ${job.id} status: ${job.status}`);
+queue.on('completed', (job) => console.log('Job completed:', job.result));
 
----
 
-## API reference
+## API Reference
 
-### `new Queue(options?)`
+### Queue
 
-Creates a new queue.
-```typescript
-const queue = new Queue({ concurrency: 10 });
-```
+#### Constructor
 
-### `queue.add(definition)`
+typescript
+new Queue<T>(options?: QueueOptions)
 
-Adds a job to the queue. Returns the `Job` record immediately — the job may
-not have started yet.
-```typescript
-const job = queue.add({
-  id: 'optional-custom-id',  // auto-generated if omitted
-  run: async () => 'result',
-  meta: { userId: 123 },
-  timeout: 5000              // optional, milliseconds
-});
-```
 
-### `queue.get(id)`
+#### Methods
 
-Returns the `Job` record for a given ID, or `undefined` if not found.
-```typescript
-const job = queue.get('my-job-id');
-```
+**`add(definition: JobDefinition<T>): Job<T>`**
 
-### `queue.onIdle()`
+Add a job to the queue. Returns the Job record immediately.
 
-Returns a `Promise` that resolves when the queue is empty and all running
-jobs have finished.
-```typescript
-await queue.onIdle();
-```
+**`get(id: string): Job<T> | undefined`**
 
-### `queue.activeCount`
+Get a job by its ID.
 
-Number of jobs currently running.
+**`onIdle(): Promise<void>`**
 
-### `queue.pendingCount`
+Resolves when the queue is empty and all jobs have finished.
 
-Number of jobs waiting to run.
+#### Properties
 
-### `queue.size`
+**`activeCount: number`** - Number of jobs currently running
 
-Total number of jobs tracked — pending, running, and finished.
+**`pendingCount: number`** - Number of jobs waiting to run
 
----
+**`size: number`** - Total jobs tracked (pending + running + completed)
 
-## Options
+### Options
 
-### `QueueOptions`
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `concurrency` | `number` | `1` | Maximum number of jobs running concurrently |
+| `defaultTimeout` | `TimeoutPolicy` | `undefined` | Default timeout policy for all jobs |
 
-| Option        | Type     | Default | Description                                     |
-| ------------- | -------- | ------- | ----------------------------------------------- |
-| `concurrency` | `number` | `1`     | Maximum number of jobs running at the same time |
+### JobDefinition
 
-### `JobDefinition<T>`
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `run` | `() => Promise<T>` | ✅ | The async work to perform |
+| `id` | `string` | ❌ | Unique identifier (auto-generated if not provided) |
+| `meta` | `Record<string, unknown>` | ❌ | Arbitrary metadata attached to the job |
+| `timeout` | `TimeoutPolicy` | ❌ | Timeout policy for this job |
 
-| Option    | Type                      | Default        | Description                                                           |
-| --------- | ------------------------- | -------------- | --------------------------------------------------------------------- |
-| `id`      | `string`                  | auto-generated | Unique job identifier                                                 |
-| `run`     | `() => Promise<T>`        | required       | The async function to execute                                         |
-| `meta`    | `Record<string, unknown>` | `{}`           | Arbitrary metadata attached to the job                                |
-| `timeout` | `number`                  | none           | Timeout in milliseconds. Job is cancelled if it exceeds this duration |
+### TimeoutPolicy
 
----
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `timeoutMs` | `number` | ✅ | Timeout duration in milliseconds |
 
-## Job object
+### Job Object
 
-Every call to `queue.add()` returns a `Job` record that is updated in place
-as the job progresses.
+typescript
+interface Job<T> {
+  id: string;
+  status: "pending" | "running" | "completed" | "failed" | "timeout";
+  meta: Record<string, unknown>;
+  result?: T;
+  error?: Error;
+  createdAt: number;
+  startedAt?: number;
+  completedAt?: number;
+  timedOut?: boolean;
+  timeout?: TimeoutPolicy;
+}
 
-| Property      | Type                      | Description                                        |
-| ------------- | ------------------------- | -------------------------------------------------- |
-| `id`          | `string`                  | Unique job identifier                              |
-| `status`      | `JobStatus`               | Current status — see below                         |
-| `meta`        | `Record<string, unknown>` | Metadata passed at creation                        |
-| `result`      | `T \| undefined`          | Return value of `run()`, set on completion         |
-| `error`       | `Error \| undefined`      | Error thrown by `run()`, set on failure or timeout |
-| `timedOut`    | `boolean \| undefined`    | `true` if the job was cancelled due to timeout     |
-| `createdAt`   | `number`                  | Unix timestamp (ms) when the job was added         |
-| `startedAt`   | `number \| undefined`     | Unix timestamp (ms) when the job started running   |
-| `completedAt` | `number \| undefined`     | Unix timestamp (ms) when the job finished          |
-
-### `JobStatus`
-
-| Value         | Description                   |
-| ------------- | ----------------------------- |
-| `"pending"`   | Waiting in the queue          |
-| `"running"`   | Currently executing           |
-| `"completed"` | Finished successfully         |
-| `"failed"`    | Threw an error                |
-| `"timeout"`   | Exceeded its timeout duration |
-
----
 
 ## Events
 
-| Event       | Payload  | When                                     |
-| ----------- | -------- | ---------------------------------------- |
-| `completed` | `Job<T>` | A job finished successfully              |
-| `failed`    | `Job<T>` | A job threw an error                     |
-| `timeout`   | `Job<T>` | A job exceeded its timeout               |
-| `idle`      | none     | The queue is empty and all jobs are done |
-```typescript
-queue.on('completed', (job) => {
-  console.log(`✓ ${job.id} →`, job.result);
-});
+The queue extends EventEmitter and emits the following events:
 
-queue.on('failed', (job) => {
-  console.error(`✗ ${job.id}`, job.error);
-});
+**`completed`** - Emitted when a job completes successfully
+- Payload: `Job<T>` - The completed job object
 
-queue.on('timeout', (job) => {
-  console.warn(`⏱ ${job.id} timed out after ${job.completedAt! - job.startedAt!}ms`);
-});
+**`failed`** - Emitted when a job fails with an error
+- Payload: `Job<T>` - The failed job object with error details
 
-queue.on('idle', () => {
-  console.log('all done');
-});
-```
+**`timeout`** - Emitted when a job exceeds its timeout duration
+- Payload: `Job<T>` - The timed out job object
 
----
+**`idle`** - Emitted when the queue becomes empty and all jobs finish
+- Payload: None
 
 ## Examples
 
-### Concurrency control
-```typescript
+### Basic Usage
+
+javascript
+import { Queue } from 'phageq';
+
 const queue = new Queue({ concurrency: 3 });
 
-for (const url of urls) {
-  queue.add({ run: () => fetch(url) });
-}
+const jobs = [
+  queue.add({ run: () => processFile('file1.txt') }),
+  queue.add({ run: () => processFile('file2.txt') }),
+  queue.add({ run: () => processFile('file3.txt') })
+];
 
+// Wait for all jobs to complete
 await queue.onIdle();
-```
+console.log('All files processed');
 
-### Job metadata
-```typescript
-const job = queue.add({
-  run: async () => processOrder(order),
-  meta: { orderId: order.id, userId: user.id }
+
+### Job Timeouts
+
+javascript
+const queue = new Queue({
+  concurrency: 2,
+  defaultTimeout: { timeoutMs: 5000 } // 5 second default
 });
 
-queue.on('failed', (job) => {
-  logger.error('job failed', job.meta); // { orderId: ..., userId: ... }
-});
-```
-
-### Job timeouts
-```typescript
-const queue = new Queue({ concurrency: 5 });
-
+// This job will use the default 5 second timeout
 queue.add({
-  run: () => callExternalApi(),
-  timeout: 3000 // cancel if it takes more than 3 seconds
+  run: async () => {
+    const response = await fetch('https://slow-api.com/data');
+    return response.json();
+  }
+});
+
+// This job overrides the default with a 10 second timeout
+queue.add({
+  run: async () => slowOperation(),
+  timeout: { timeoutMs: 10000 }
 });
 
 queue.on('timeout', (job) => {
-  console.warn(`job ${job.id} timed out`);
+  console.log(`Job ${job.id} timed out after ${job.timeout.timeoutMs}ms`);
 });
-```
 
-### Tracking job state
-```typescript
-const job = queue.add({ run: () => heavyWork() });
 
-console.log(job.status); // 'pending'
+### Job Metadata and Tracking
 
-await queue.onIdle();
+javascript
+const queue = new Queue({ concurrency: 1 });
 
-console.log(job.status);  // 'completed'
-console.log(job.result);  // return value of heavyWork()
-console.log(job.completedAt - job.startedAt, 'ms');
-```
+const job = queue.add({
+  run: async () => downloadFile('https://example.com/large-file.zip'),
+  meta: {
+    userId: 'user123',
+    operation: 'download',
+    priority: 'high'
+  }
+});
 
-### Custom job IDs
-```typescript
+console.log('Job created at:', job.createdAt);
+console.log('User ID:', job.meta.userId);
+
+queue.on('completed', (job) => {
+  const duration = job.completedAt - job.startedAt;
+  console.log(`Download completed in ${duration}ms for user ${job.meta.userId}`);
+});
+
+
+### Error Handling
+
+javascript
+const queue = new Queue({ concurrency: 1 });
+
 queue.add({
-  id: `order-${orderId}`,
-  run: () => processOrder(orderId)
+  run: async () => {
+    throw new Error('Something went wrong');
+  }
 });
 
-const job = queue.get(`order-${orderId}`);
-```
+queue.on('failed', (job) => {
+  console.error(`Job ${job.id} failed:`, job.error.message);
+});
 
----
+queue.on('completed', (job) => {
+  console.log(`Job ${job.id} completed:`, job.result);
+});
 
-## Benchmarks
 
-phageq is benchmarked every cycle against p-queue and toad-scheduler.
-Current standings at [phage.pw/leaderboard](https://phage.pw/leaderboard).
+### Monitoring Queue State
 
----
+javascript
+const queue = new Queue({ concurrency: 5 });
 
-*Built by an agent. Seeded by a human.*
+// Add multiple jobs
+for (let i = 0; i < 100; i++) {
+  queue.add({ run: () => processTask(i) });
+}
+
+// Monitor progress
+const monitor = setInterval(() => {
+  console.log(`Active: ${queue.activeCount}, Pending: ${queue.pendingCount}, Total: ${queue.size}`);
+  
+  if (queue.activeCount === 0 && queue.pendingCount === 0) {
+    clearInterval(monitor);
+    console.log('All jobs completed');
+  }
+}, 1000);
+
+
+## Performance
+
+phageq is optimized for high throughput with:
+
+- O(1) job queuing and dequeuing using internal deque structure
+- Minimal per-job overhead with optimized ID generation
+- Conditional event emission to avoid overhead when no listeners are attached
+- Efficient timeout handling with fast/slow path optimization
+
+## License
+
+MIT
