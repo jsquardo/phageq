@@ -22,6 +22,7 @@ const client = new Anthropic();
 const CYCLE_INTERVAL_MS = 4 * 60 * 60 * 1000;
 const MODEL = "claude-sonnet-4-20250514";
 const MAX_TOKENS = 8192;
+const LAST_CYCLE_FLAG = ".last-cycle-had-changes";
 
 const FROZEN_FILES = [
   "benchmarks/run.ts",
@@ -30,7 +31,6 @@ const FROZEN_FILES = [
   "agent/loop.ts",
   "jest.config.js",
   "jest.config.cjs",
-  "tsconfig.json",
 ];
 
 function log(msg: string) {
@@ -84,6 +84,23 @@ function getCurrentCycleNumber(): number {
   }
 }
 
+async function getLastCycleHadChanges(): Promise<boolean> {
+  try {
+    const val = await fs.readFile(path.join(ROOT, LAST_CYCLE_FLAG), "utf8");
+    return val.trim() === "true";
+  } catch {
+    return true; // default: assume changes so first cycle is never blocked
+  }
+}
+
+async function setLastCycleHadChanges(hadChanges: boolean): Promise<void> {
+  await fs.writeFile(
+    path.join(ROOT, LAST_CYCLE_FLAG),
+    String(hadChanges),
+    "utf8",
+  );
+}
+
 async function archiveCycle(cycleNum: number): Promise<void> {
   const archiveDir = path.join(ROOT, "agent", "archive", `cycle-${cycleNum}`);
   await fs.mkdir(archiveDir, { recursive: true });
@@ -101,7 +118,10 @@ function gitCommit(message: string): void {
   run(`git commit -m "${message}"`);
 }
 
-async function buildContext(cycleNum: number): Promise<string> {
+async function buildContext(
+  cycleNum: number,
+  lastCycleHadChanges: boolean,
+): Promise<string> {
   log("reading codebase...");
   const srcFiles = await readDir("src");
   const srcContents: string[] = [];
@@ -133,12 +153,27 @@ async function buildContext(cycleNum: number): Promise<string> {
     leaderboard = rows.join("\n");
   } catch {}
 
+  // Hard enforcement: if last cycle had no code changes, inject mandatory instruction
+  const measurementBan = !lastCycleHadChanges
+    ? `
+## ⚠️ MANDATORY — YOU MUST MAKE A CODE CHANGE THIS CYCLE ⚠️
+
+The previous cycle had no code changes (it was a measurement-only cycle).
+You are NOT permitted to run another measurement-only cycle.
+You MUST include at least one file in your \`files\` array.
+
+If your \`files\` array is empty, the loop will treat this as a violation.
+Pick the highest-confidence optimization you can reason to and ship it.
+A reverted change produces more signal than a wasted measurement cycle.
+`
+    : "";
+
   return `
 # Phage — Cycle ${cycleNum}
 
 ## Your instructions
 ${agents}
-
+${measurementBan}
 ## Current source code
 ${srcContents.join("\n\n")}
 
@@ -216,23 +251,13 @@ async function runTests(): Promise<{ passed: boolean; output: string }> {
     stderr: err.stderr ?? "",
   }));
   const output = stdout + stderr;
-  const passed = output.includes("Tests:") && !output.match(/\d+ failed/);
+  const passed = output.includes("Tests:") && !output.includes("failed");
   return { passed, output };
 }
 
 async function runBenchmarks(): Promise<void> {
   log("running benchmarks...");
   await execAsync("npm run bench 2>&1").catch(() => {});
-}
-
-async function saveBenchmarkHistory(cycleNum: number): Promise<void> {
-  const historyDir = path.join(ROOT, "benchmarks", "history");
-  await fs.mkdir(historyDir, { recursive: true });
-  const latest = await readFile("benchmarks/latest.json");
-  if (!latest) return;
-  const filename = `cycle-${String(cycleNum).padStart(3, "0")}.json`;
-  await fs.writeFile(path.join(historyDir, filename), latest, "utf8");
-  log(`benchmark history saved: benchmarks/history/${filename}`);
 }
 
 async function runCompetitorBenchmarks(): Promise<void> {
@@ -282,6 +307,20 @@ function checkBenchmarkRegression(
   } catch {
     return { regressed: false, details: "" };
   }
+}
+
+async function saveBenchmarkHistory(cycleNum: number): Promise<void> {
+  try {
+    const latest = await readFile("benchmarks/latest.json");
+    if (!latest) return;
+    const histDir = path.join(ROOT, "benchmarks", "history");
+    await fs.mkdir(histDir, { recursive: true });
+    await fs.writeFile(
+      path.join(histDir, `cycle-${String(cycleNum).padStart(3, "0")}.json`),
+      latest,
+      "utf8",
+    );
+  } catch {}
 }
 
 async function appendCycleLog(entry: string): Promise<void> {
@@ -363,12 +402,19 @@ async function runCycle(): Promise<void> {
   log(`CYCLE ${cycleNum} — ${cycleStart}`);
   log(`${"═".repeat(60)}\n`);
 
+  const lastCycleHadChanges = await getLastCycleHadChanges();
+  if (!lastCycleHadChanges) {
+    log(
+      `⚠️  last cycle was measurement-only — injecting code change requirement`,
+    );
+  }
+
   const benchBefore = await readFile("benchmarks/latest.json");
   await archiveCycle(cycleNum);
   await runCompetitorBenchmarks();
 
   log("calling Claude...");
-  const context = await buildContext(cycleNum);
+  const context = await buildContext(cycleNum, lastCycleHadChanges);
 
   const message = await client.messages.create({
     model: MODEL,
@@ -390,11 +436,23 @@ async function runCycle(): Promise<void> {
     await appendCycleLog(
       `## Cycle ${cycleNum} — ${cycleStart}\n\n**Result:** FAILED — could not parse agent response.`,
     );
+    await setLastCycleHadChanges(false);
     return;
   }
 
   log(`\n📋 plan: ${agentResponse.summary}`);
   log(`💭 why:  ${agentResponse.reasoning}\n`);
+
+  const hadCodeChanges = agentResponse.files.length > 0;
+
+  // Enforce consecutive measurement ban — if last cycle had no changes and
+  // this one also has no changes, log a warning but still proceed (the
+  // measurement ban in the prompt should have prevented this)
+  if (!lastCycleHadChanges && !hadCodeChanges) {
+    log(
+      `⚠️  consecutive measurement cycle detected despite ban — agent ignored instruction`,
+    );
+  }
 
   await applyChanges(agentResponse);
 
@@ -409,6 +467,7 @@ async function runCycle(): Promise<void> {
       `\n\n**Note for next cycle:** The above approach was attempted and failed. Do not repeat it. Find a different solution.`;
     await appendCycleLog(failLog);
     await publishToBlog(cycleNum, failLog);
+    await setLastCycleHadChanges(hadCodeChanges);
     return;
   }
 
@@ -416,7 +475,7 @@ async function runCycle(): Promise<void> {
 
   await runBenchmarks();
   const benchAfter = await readFile("benchmarks/latest.json");
-  const noCodeChanges = agentResponse.files.length === 0;
+  const noCodeChanges = !hadCodeChanges;
   const { regressed, details } = checkBenchmarkRegression(
     benchBefore,
     benchAfter,
@@ -431,10 +490,11 @@ async function runCycle(): Promise<void> {
       `\n\n**Note for next cycle:** The above approach caused a benchmark regression and was reverted. Do not repeat it. Find a different solution.`;
     await appendCycleLog(regressLog);
     await publishToBlog(cycleNum, regressLog);
+    await setLastCycleHadChanges(false);
     return;
   } else if (regressed && noCodeChanges) {
     log(
-      `⚠️  benchmark variance detected on measurement-only cycle — not reverting (no code changes)`,
+      `⚠️  benchmark variance on measurement-only cycle — not reverting (no code changes)`,
     );
   }
 
@@ -456,6 +516,7 @@ async function runCycle(): Promise<void> {
   await appendCycleLog(agentResponse.cycleLog);
   await publishToBlog(cycleNum, agentResponse.cycleLog);
   await triggerRebuildWebhook(cycleNum);
+  await setLastCycleHadChanges(hadCodeChanges);
 
   log(`\n🧬 cycle ${cycleNum} complete\n`);
 }
