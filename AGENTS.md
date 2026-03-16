@@ -85,13 +85,17 @@ Security regressions are treated the same as test failures — the change is rev
 
 ## Test file hygiene
 
-At the start of every cycle, audit the `tests/` directory. If you find any test files
-referencing features that do not exist in the current `src/`, delete them as part of
-your changes. Orphaned test files will cause every future cycle to fail.
+At the start of every cycle, audit the `tests/` directory. The prompt will tell
+you which test files are currently tracked by git. Only those files will be run.
+
+If you find test files in the `tests/` directory that reference features which
+do not exist in the current `src/`, do not delete them — those are committed test
+files that define the spec for features you need to implement. Read them carefully
+and implement the feature they describe.
 
 Never leave behind a test file for a feature you did not successfully implement.
-If your changes are reverted, check that no orphaned test files remain before the
-next cycle begins.
+If your changes are reverted, any test files you created for the failed feature
+will be cleaned up automatically.
 
 ---
 
@@ -99,25 +103,58 @@ next cycle begins.
 
 As you add or modify code, you are responsible for keeping it documented and clean:
 
-- Every public method, getter, and interface must have a JSDoc comment explaining what it does and any non-obvious behaviour
-- Non-obvious internal logic should have inline comments explaining the *why* not the *what*
+- Every public method, getter, and interface must have a JSDoc comment explaining
+  what it does and any non-obvious behaviour
+- Non-obvious internal logic should have inline comments explaining the *why* not
+  the *what*
 - Keep type definitions explicit — avoid `any`, prefer specific types
-- If you introduce a new data structure or concept (like a Deque, retry policy, or priority heap), document it at the class level
+- If you introduce a new data structure or concept (like a Deque, retry policy, or
+  priority heap), document it at the class level
 - Do not leave dead code or commented-out blocks behind
 
-This is not bureaucracy. Undocumented code is harder for you to reason about in future cycles. Good documentation is how you stay sharp as the codebase grows.
+This is not bureaucracy. Undocumented code is harder for you to reason about in
+future cycles. Good documentation is how you stay sharp as the codebase grows.
+
+---
+
+## TypeScript configuration
+
+`tsconfig.json` is **partially frozen** — you may only modify the `"types"` array
+inside `"compilerOptions"` if you need to add a type definition package (e.g.
+`"jest"`, `"node"`). No other field may be changed.
+
+Do not modify `"module"`, `"moduleResolution"`, `"target"`, `"include"`,
+`"exclude"`, or any other field. Those are frozen.
+
+### The "Cannot find name 'test'" error
+
+If you see TypeScript errors like:
+- `Cannot find name 'test'. Do you need to install type definitions for a test runner?`
+- `Cannot find name 'expect'.`
+
+The most likely cause is that `"@types/jest"` is missing from the `"types"` array
+in `tsconfig.json`. You are permitted to fix this by adding `"jest"` to that array:
+
+```json
+"types": ["node", "jest"]
+```
+
+If that is already present and the error persists, you have an orphaned test file
+being picked up incorrectly — audit `tests/` and remove it.
+
+**Do NOT revert your source change.** This error is not caused by your source code.
 
 ---
 
 ## Event emission optimization
 
-The `completed` and `failed` events are part of the frozen public API and must
-always be emittable. However, unconditionally emitting events even when no
-listeners are attached creates unnecessary overhead.
+The `completed` and `failed` events are part of the public API and must always be
+emittable. However, unconditionally emitting events even when no listeners are
+attached creates unnecessary overhead.
 
 Consider using `this.listenerCount("completed") > 0` before emitting to avoid
-overhead when no listeners are registered. This is a legitimate optimization
-that maintains full API compatibility.
+overhead when no listeners are registered. This is a legitimate optimization that
+maintains full API compatibility.
 
 ---
 
@@ -141,26 +178,7 @@ help you avoid optimizations that help one but hurt another:
 
 Before making a change to `execute()`, think about how it will affect each
 benchmark independently. A branch added to the hot path will always hurt
-latency_sensitive even if it helps others.
-
----
-
-## Recognizing dead ends
-
-Before attempting an optimization, scan your recent cycle history in CHANGELOG.md.
-If you can identify a pattern where the same class of change (e.g. modifying job ID
-generation, adjusting event emission, restructuring the drain loop) has been attempted
-2 or more times and consistently caused regressions or test failures, treat that area
-as a dead end for now.
-
-When you hit a dead end:
-- Do not attempt the same approach with minor variations — a 5% tweak to a failing
-  idea is still the same idea
-- Pivot to a completely different part of the system
-- Document explicitly in your cycleLog that you identified a dead end and why you
-  chose a different direction
-
-The CHANGELOG is your memory. Use it.
+`latency_sensitive` even if it helps others.
 
 ---
 
@@ -168,8 +186,8 @@ The CHANGELOG is your memory. Use it.
 
 Benchmarks are not perfectly stable. A single re-run of the same code can
 produce results that differ by 10–20% due to system load, GC timing, and
-Node.js JIT warmup — especially on `latency_sensitive` (1,000 jobs) and
-`concurrent_heavy` (high concurrency, short work) which are the noisiest.
+Node.js JIT warmup — especially on `latency_sensitive` and `concurrent_heavy`
+which are the noisiest.
 
 ### Rules for interpreting benchmark results
 
@@ -177,52 +195,62 @@ Node.js JIT warmup — especially on `latency_sensitive` (1,000 jobs) and
   If you made no changes to `src/`, there is nothing to revert. Variance in
   a measurement-only cycle is just noise.
 - **`latency_sensitive` and `concurrent_heavy` are the noisiest benchmarks.**
-  A 15–30% swing on these alone, with no corroborating movement on
-  `throughput_small` or `throughput_large`, is noise — not a real regression.
+  A 15–30% swing on these alone, with no corroborating movement on other
+  benchmarks, is noise — not a real regression.
 - **A real regression shows up across multiple benchmarks simultaneously.**
   If `throughput_small`, `throughput_large`, and `concurrent_heavy` all drop
   together after a code change, that's real. One benchmark dropping in isolation
   is almost always noise.
 - **When two measurement cycles produce inconsistent results, take the higher
   of the two as your baseline and move on.** Do not run a third measurement.
-  More measurements do not reduce noise — they just burn cycles.
 
-### The consecutive measurement rule — this is mandatory
+### The consecutive measurement rule — mandatory
 
 **You may never run two consecutive measurement-only cycles.**
 
-If the previous cycle had no code changes (`files` was empty), you must make
-a real code change this cycle. No exceptions. If you are uncertain which
-direction to go, pick the highest-confidence optimization you can reason to
-from first principles and ship it. A imperfect change that gets reverted is
-more useful than another measurement cycle — at minimum it gives you real
-signal.
+If the previous cycle had no code changes, you must make a real code change this
+cycle. No exceptions. If you are uncertain which direction to go, pick the
+highest-confidence optimization you can reason to from first principles and ship
+it. A reverted change is more useful than another measurement cycle.
 
-Wasting cycles on re-measurement is the failure mode. Benchmarks are noisy.
-Accept that and act.
-  ---
+---
+
+## Recognizing dead ends
+
+Before attempting an optimization, scan your recent cycle history in CHANGELOG.md.
+If you can identify a pattern where the same class of change has been attempted
+2 or more times and consistently caused regressions or test failures, treat that
+area as a dead end for now.
+
+When you hit a dead end:
+- Do not attempt the same approach with minor variations
+- Pivot to a completely different part of the system
+- Document explicitly in your cycleLog that you identified a dead end and why
+
+The CHANGELOG is your memory. Use it.
+
+---
 
 ## The difference between a dead end and a bug
 
-The "Note for next cycle: do not repeat this" flag means the *approach* failed —
+The "Note for next cycle" flag on a revert means the *approach* failed —
 not that the *feature* is off limits. Use judgment:
 
-- If a feature was attempted and the implementation compiled but a test caught a
-  logic error → that is a **bug**, not a dead end. Fix the bug, don't abandon
-  the feature.
-- If the same class of change has caused structural failures (revert loops,
-  compilation errors, benchmark regressions) across 2+ cycles with no forward
-  progress → that is a **dead end**. Pivot.
+- If a feature compiled but a test caught a logic error → that is a **bug**.
+  Fix the bug, don't abandon the feature.
+- If the same class of change has caused structural failures across 2+ cycles
+  with no forward progress → that is a **dead end**. Pivot.
 
-A near-working implementation with one failing test is not the same as a
-repeated failure. Read the test output before deciding to abandon.
+A near-working implementation with one failing test is not a repeated failure.
+Read the test output before deciding to abandon.
 
 ---
 
 ## Implementing job timeouts correctly
 
-Job timeout support was successfully implemented in cycle 35 using `Promise.race()`.
-If you need to modify or extend the timeout system, the core pattern must be preserved:
+Job timeout support requires `Promise.race()` — you cannot cancel a running
+JavaScript promise, so you must race it against a timeout promise:
+
 ```typescript
 const timeoutPromise = new Promise<never>((_, reject) =>
   setTimeout(() => reject(new Error(`Job ${job.id} timed out`)), timeoutMs)
@@ -241,38 +269,9 @@ try {
 }
 ```
 
-Key constraint: once `Promise.race()` rejects on timeout, `job.result` must never
-be set. Always clear the timeout handle in a `finally` block to avoid memory leaks.
-
----
-
-## TypeScript configuration
-
-`tsconfig.json` is **partially frozen** — you may only modify the `"types"` array
-inside `"compilerOptions"` if you need to add a type definition package (e.g.
-`"jest"`, `"node"`). No other field may be changed.
-
-Do not modify `"module"`, `"moduleResolution"`, `"target"`, `"include"`,
-`"exclude"`, or any other field. Those are frozen.
-
-### The "Cannot find name 'test'" error — read this carefully
-
-If you see TypeScript errors like:
-- `Cannot find name 'test'. Do you need to install type definitions for a test runner?`
-- `Cannot find name 'expect'.`
-
-**This error is NOT caused by your source code change. Do NOT revert your change.**
-
-The most likely cause is that `"@types/jest"` is missing from the `"types"` array
-in `tsconfig.json`. You are permitted to fix this by adding `"jest"` to that array:
-```json
-"types": ["node", "jest"]
-```
-
-If that is already present and the error persists, you have an orphaned test file
-that is being picked up incorrectly — audit `tests/` and remove it.
-
-Reverting your source change will not fix this error.
+Key constraint: once `Promise.race()` rejects on timeout, `job.result` must
+never be set. Always clear the timeout handle in a `finally` block to avoid
+memory leaks.
 
 ---
 
@@ -285,12 +284,13 @@ At the end of every cycle — after tests pass and your changes are committed �
 3. Both results are written to `benchmarks/latest.json` and `benchmarks/competitors-latest.json`
 4. These files are read by the site at build time — the leaderboard will not update without this step
 
-The benchmark data is not committed to git (it is gitignored). It lives on the server
-and is picked up automatically on the next site rebuild. You do not need to commit the
-JSON files — just run the commands and the site will reflect the new numbers.
+The benchmark data is not committed to git (it is gitignored). It lives on the
+server and is picked up automatically on the next site rebuild. You do not need
+to commit the JSON files — just run the commands.
 
-**Do this every cycle, win or lose.** Accurate data matters more than flattering data.
-If you regressed, the leaderboard should say so. That is how you know what to fix next.
+**Do this every cycle, win or lose.** Accurate data matters more than flattering
+data. If you regressed, the leaderboard should say so. That is how you know what
+to fix next.
 
 ---
 
@@ -299,18 +299,16 @@ If you regressed, the leaderboard should say so. That is how you know what to fi
 README.md must be updated every cycle that adds or changes public API. This is
 not optional — include it in your `files` array alongside your source changes.
 
-The README is the primary interface between this library and its users. Model it
-after p-queue's README structure:
+The README is the primary interface between this library and its users. Keep it
+structured as:
 
 1. **Install** — `npm install phageq`
 2. **Quick start** — a minimal working example, ~10 lines
 3. **API reference** — every public method and option, with types and descriptions
 4. **Options table** — a markdown table of all `QueueOptions` and `JobDefinition`
    fields: name, type, default, description
-5. **Events** — list every emitted event (`completed`, `failed`, `idle`, `timeout`,
-   etc.) with the payload type and when it fires
-6. **Examples** — short focused examples for non-obvious features (timeouts,
-   onIdle, metadata, etc.)
+5. **Events** — list every emitted event with payload type and when it fires
+6. **Examples** — short focused examples for non-obvious features
 
 Rules:
 - Update incrementally — do not rewrite from scratch every cycle
@@ -326,10 +324,10 @@ Rules:
 - ✅ Job lifecycle tracking — pending, running, completed, failed (seed)
 - ✅ `onIdle()`, `activeCount`, `pendingCount`, `size` (seed)
 - ✅ `completed`, `failed`, `idle` events (seed)
-- ✅ Job timeout support with `Promise.race()` (cycle 35)
 
 ## What you are still missing
 
+- No job timeout support
 - No priority support
 - No retry logic
 - No rate limiting
@@ -337,15 +335,6 @@ Rules:
 - No metrics or observability
 - No job dependencies
 - No persistence
-
----
-
-## Known false dead ends
-
-The `generateId()` optimization (switching from template literals to
-`String(++this.jobIdCounter)`) was reverted in cycles 32–33 due to a TypeScript
-infrastructure error — NOT because the optimization was flawed. It is valid and
-can be reattempted now that the tsconfig `types` issue is resolved.
 
 ---
 
@@ -366,7 +355,7 @@ account of what happened.
 - **First person, present tense.** "I replaced the array with a heap." Own it.
 - **Specific about the why.** Don't say "improved performance." Say what signal led you here.
 - **Honest about avoidance.** If you've been dodging something, say so.
-- **End with what's next and why.** A specific target with a reason — not vague "continue improving."
+- **End with what's next and why.** A specific target with a reason.
 - **Short sentences. No filler.** Every word earns its place.
 - **Never self-congratulate.** Results speak. Describe them.
 
@@ -375,6 +364,7 @@ account of what happened.
 ## Cycle log format
 
 Append to `CHANGELOG.md` at the end of every cycle:
+
 ```
 ## Cycle N — YYYY-MM-DD HH:MM:SS
 
@@ -391,9 +381,9 @@ Append to `CHANGELOG.md` at the end of every cycle:
 **Benchmark delta:**
   throughput_small:  [before] → [after] jobs/sec ([+/-%])
   throughput_large:  [before] → [after] jobs/sec ([+/-%])
-  latency_p99:       [before] → [after] ms        ([+/-%])
+  latency_sensitive: [before] → [after] jobs/sec ([+/-%])
   concurrent_heavy:  [before] → [after] jobs/sec ([+/-%])
-  memory_pressure:   [before] → [after] mb        ([+/-%])
+  memory_pressure:   [before] → [after] jobs/sec ([+/-%])
 
 **Leaderboard:**
   throughput_small:  phageq [N] | p-queue [N] | toad-scheduler [N]

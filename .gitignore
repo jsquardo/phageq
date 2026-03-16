@@ -10,3 +10,4 @@ phageq-site/.astro/
 phageq-site/test-local.mjs
 benchmarks/history/
 .last-cycle-had-changes
+CLAUDE_CODE_BRIEFING.md
