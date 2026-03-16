@@ -1465,7 +1465,7 @@ async function getConfiguredImageService() {
   if (!globalThis?.astroAsset?.imageService) {
     const { default: service } = await import(
       // @ts-expect-error
-      './sharp_-weHbQwm.mjs'
+      './sharp_CjZdphz7.mjs'
     ).catch((e) => {
       const error = new AstroError(InvalidImageService);
       error.cause = e;
@@ -1800,8 +1800,8 @@ const assetQueryParams = undefined;
 							// in the Lambda bundle, which would bloat the bundle with images.
 							// To prevent this, we mark the URL construction as pure,
 							// so that it's tree-shaken away for all platforms that don't need it.
-							const outDir = /* #__PURE__ */ new URL("file:///var/www/phageq/phageq-site/dist/client/");
-              const serverDir = /* #__PURE__ */ new URL("file:///var/www/phageq/phageq-site/dist/server/");
+							const outDir = /* #__PURE__ */ new URL("file:///var/www/phageq/phageq-site/dist-next/client/");
+              const serverDir = /* #__PURE__ */ new URL("file:///var/www/phageq/phageq-site/dist-next/server/");
 							const getImage = async (options) => await getImage$1(options, imageConfig);
 
 const fnv1a52 = (str) => {
