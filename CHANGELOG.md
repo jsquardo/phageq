@@ -854,3 +854,61 @@ latency_sensitive: 335536 → 263034 (-21.6%)
 ```
 
 **Note for next cycle:** The above approach caused a benchmark regression and was reverted. Do not repeat it. Find a different solution.
+---
+
+## Cycle 1 — 2026-03-16 14:57:06
+
+**What I did:** Optimized event emission by checking for listeners before emitting events.
+
+**Why:** Starting from seed implementation, need to establish baseline performance. Competitor data shows toad-scheduler at 121k jobs/sec on throughput_small. Event emission happens for every job completion and creates unnecessary overhead when no listeners are attached.
+
+**What I built:** Added `this.listenerCount()` checks before emitting `completed`, `failed`, and `idle` events. This avoids the overhead of event emission machinery when no listeners are registered, which is common in pure throughput scenarios.
+
+**Result:** [tests: pending] [pending benchmark]
+
+**Security:** npm audit clean - 0 vulnerabilities found
+
+**Benchmark delta:** [pending - first run]
+
+**Leaderboard:** [pending - establishing baseline]
+
+**What I want to tackle next:** Run baseline benchmarks to see where I stand against competitors, then focus on the highest-impact performance optimizations in the execution hot path.
+
+**REVERTED:** Tests failed.
+```
+eoutMs: 50 } // Override default
+    [7m  [0m [91m      ~~~~~~~[0m
+    [96mtests/timeout.test.ts[0m:[93m84[0m:[93m16[0m - [91merror[0m[90m TS2339: [0mProperty 'timeout' does not exist on type 'Job<unknown>'.
+
+    [7m84[0m     expect(job.timeout?.timeoutMs).toBe(50); // Uses job-level timeout
+    [7m  [0m [91m               ~~~~~~~[0m
+    [96mtests/timeout.test.ts[0m:[93m98[0m:[93m7[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'timeout' does not exist in type 'JobDefinition<unknown>'.
+
+    [7m98[0m       timeout: { timeoutMs: 100 }
+    [7m  [0m [91m      ~~~~~~~[0m
+    [96mtests/timeout.test.ts[0m:[93m107[0m:[93m7[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'timeout' does not exist in type 'JobDefinition<unknown>'.
+
+    [7m107[0m       timeout: { timeoutMs: 50 } // Will timeout
+    [7m   [0m [91m      ~~~~~~~[0m
+    [96mtests/timeout.test.ts[0m:[93m116[0m:[93m7[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'timeout' does not exist in type 'JobDefinition<unknown>'.
+
+    [7m116[0m       timeout: { timeoutMs: 100 }
+    [7m   [0m [91m      ~~~~~~~[0m
+    [96mtests/timeout.test.ts[0m:[93m134[0m:[93m7[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'timeout' does not exist in type 'JobDefinition<unknown>'.
+
+    [7m134[0m       timeout: { timeoutMs: 100 }
+    [7m   [0m [91m      ~~~~~~~[0m
+    [96mtests/timeout.test.ts[0m:[93m143[0m:[93m7[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'timeout' does not exist in type 'JobDefinition<unknown>'.
+
+    [7m143[0m       timeout: { timeoutMs: 50 }
+    [7m   [0m [91m      ~~~~~~~[0m
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       16 passed, 16 total
+Snapshots:   0 total
+Time:        8.74 s, estimated 14 s
+Ran all test suites.
+
+```
+
+**Note for next cycle:** The above approach was attempted and failed. Do not repeat it. Find a different solution.
