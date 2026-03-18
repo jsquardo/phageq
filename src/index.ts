@@ -97,11 +97,43 @@ export class Queue<T = unknown> extends EventEmitter {
   private readonly jobs: Map<string, Job<T>> = new Map();
   private jobIdCounter: number = 0;
   private createdAtCounter: number = 0;
+  
+  // Cached listener states to eliminate repeated listenerCount() calls
+  private hasCompletedListeners: boolean = false;
+  private hasFailedListeners: boolean = false;
+  private hasTimeoutListeners: boolean = false;
+  private hasIdleListeners: boolean = false;
 
   constructor(options: QueueOptions = {}) {
     super();
     this.concurrency = Math.max(1, options.concurrency ?? 1);
     this.defaultTimeout = options.defaultTimeout;
+    
+    // Update cached flags when listeners are added/removed
+    this.on('newListener', (event: string) => {
+      this.updateListenerCache(event, true);
+    });
+    
+    this.on('removeListener', (event: string) => {
+      this.updateListenerCache(event, false);
+    });
+  }
+
+  private updateListenerCache(event: string, isAdding: boolean): void {
+    switch (event) {
+      case 'completed':
+        this.hasCompletedListeners = isAdding || this.listenerCount('completed') > 0;
+        break;
+      case 'failed':
+        this.hasFailedListeners = isAdding || this.listenerCount('failed') > 0;
+        break;
+      case 'timeout':
+        this.hasTimeoutListeners = isAdding || this.listenerCount('timeout') > 0;
+        break;
+      case 'idle':
+        this.hasIdleListeners = isAdding || this.listenerCount('idle') > 0;
+        break;
+    }
   }
 
   // ── Public API ──────────────────────────────────────────────────────────────
@@ -193,8 +225,8 @@ export class Queue<T = unknown> extends EventEmitter {
       job.status = "completed";
       job.completedAt = Date.now();
       
-      // Only emit if there are listeners to avoid overhead
-      if (this.listenerCount("completed") > 0) {
+      // Use cached flag instead of listenerCount() call
+      if (this.hasCompletedListeners) {
         this.emit("completed", job);
       }
     } catch (err) {
@@ -212,15 +244,15 @@ export class Queue<T = unknown> extends EventEmitter {
       job.completedAt = Date.now();
       
       // Emit timeout event for timeout jobs, failed event for regular failures
-      if (job.status === "timeout" && this.listenerCount("timeout") > 0) {
+      if (job.status === "timeout" && this.hasTimeoutListeners) {
         this.emit("timeout", job);
-      } else if (job.status === "failed" && this.listenerCount("failed") > 0) {
+      } else if (job.status === "failed" && this.hasFailedListeners) {
         this.emit("failed", job);
       }
     } finally {
       this.running--;
       this.drain();
-      if (this.running === 0 && this.pending.length === 0) {
+      if (this.running === 0 && this.pending.length === 0 && this.hasIdleListeners) {
         this.emit("idle");
       }
     }
