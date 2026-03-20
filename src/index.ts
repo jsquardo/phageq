@@ -163,15 +163,17 @@ export class Queue<T = unknown> extends EventEmitter {
       jobTimeout = this.defaultTimeout;
     }
 
+    // Use direct object creation with pre-computed counter to eliminate property assignments
+    this.createdAtCounter++;
     const job: Job<T> = {
       id: jobId,
       status: "pending",
       meta: jobMeta,
-      createdAt: ++this.createdAtCounter,
+      createdAt: this.createdAtCounter,
       timeout: jobTimeout,
     };
 
-    this.jobs.set(job.id, job);
+    this.jobs.set(jobId, job);
     this.pending.push({ def: definition, job });
     this.drain();
 
