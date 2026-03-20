@@ -219,7 +219,6 @@ export class Queue<T = unknown> extends EventEmitter {
   private async execute(def: JobDefinition<T>, job: Job<T>): Promise<void> {
     this.running++;
     job.status = "running";
-    job.startedAt = Date.now();
 
     try {
       // Fast path: no timeout configured
