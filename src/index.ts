@@ -145,8 +145,7 @@ export class Queue<T = unknown> extends EventEmitter {
     if (definition.id) {
       jobId = definition.id;
     } else {
-      this.jobIdCounter++;
-      jobId = `job_${this.jobIdCounter}`;
+      jobId = `job_${++this.jobIdCounter}`;
     }
     
     let jobMeta: Record<string, unknown>;
@@ -280,9 +279,5 @@ export class Queue<T = unknown> extends EventEmitter {
         this.emit("idle");
       }
     }
-  }
-
-  private generateId(): string {
-    return "job_" + String(++this.jobIdCounter);
   }
 }
