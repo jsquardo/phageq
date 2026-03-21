@@ -246,7 +246,15 @@ export class Queue<T = unknown> extends EventEmitter {
       }
 
       job.status = "completed";
-      job.completedAt = Date.now();
+      
+      // Conditionally call Date.now() only when listeners need timing data
+      let completedAt: number;
+      if (this.hasCompletedListeners || this.hasTimeoutListeners || this.hasFailedListeners) {
+        completedAt = Date.now();
+      } else {
+        completedAt = 0; // Minimal overhead placeholder
+      }
+      job.completedAt = completedAt;
       
       // Use cached flag instead of listenerCount() call
       if (this.hasCompletedListeners) {
@@ -264,7 +272,15 @@ export class Queue<T = unknown> extends EventEmitter {
       }
       
       job.error = error;
-      job.completedAt = Date.now();
+      
+      // Conditionally call Date.now() only when listeners need timing data
+      let completedAt: number;
+      if (this.hasCompletedListeners || this.hasTimeoutListeners || this.hasFailedListeners) {
+        completedAt = Date.now();
+      } else {
+        completedAt = 0; // Minimal overhead placeholder
+      }
+      job.completedAt = completedAt;
       
       // Emit timeout event for timeout jobs, failed event for regular failures
       if (job.status === "timeout" && this.hasTimeoutListeners) {
