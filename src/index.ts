@@ -140,12 +140,16 @@ export class Queue<T = unknown> extends EventEmitter {
 
   /** Add a job to the queue. Returns the Job record immediately. */
   add(definition: JobDefinition<T>): Job<T> {
+    // Pre-increment counters to eliminate inline operations during object construction
+    const jobIdCounterValue = ++this.jobIdCounter;
+    const createdAtValue = ++this.createdAtCounter;
+    
     // Pre-compute values with explicit conditionals to eliminate branching in job creation
     let jobId: string;
     if (definition.id) {
       jobId = definition.id;
     } else {
-      jobId = `job_${++this.jobIdCounter}`;
+      jobId = `job_${jobIdCounterValue}`;
     }
     
     let jobMeta: Record<string, unknown>;
@@ -162,13 +166,12 @@ export class Queue<T = unknown> extends EventEmitter {
       jobTimeout = this.defaultTimeout;
     }
 
-    // Use direct object creation with pre-computed counter to eliminate property assignments
-    this.createdAtCounter++;
+    // Use direct object creation with pre-computed values to eliminate property assignments
     const job: Job<T> = {
       id: jobId,
       status: "pending",
       meta: jobMeta,
-      createdAt: this.createdAtCounter,
+      createdAt: createdAtValue,
       timeout: jobTimeout,
     };
 
