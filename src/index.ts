@@ -144,38 +144,16 @@ export class Queue<T = unknown> extends EventEmitter {
     const jobIdCounterValue = ++this.jobIdCounter;
     const createdAtValue = ++this.createdAtCounter;
     
-    // Pre-compute values with explicit conditionals to eliminate branching in job creation
-    let jobId: string;
-    if (definition.id) {
-      jobId = definition.id;
-    } else {
-      jobId = `job_${jobIdCounterValue}`;
-    }
-    
-    let jobMeta: Record<string, unknown>;
-    if (definition.meta) {
-      jobMeta = definition.meta;
-    } else {
-      jobMeta = {};
-    }
-    
-    let jobTimeout: TimeoutPolicy | undefined;
-    if (definition.timeout) {
-      jobTimeout = definition.timeout;
-    } else {
-      jobTimeout = this.defaultTimeout;
-    }
-
-    // Use direct object creation with pre-computed values to eliminate property assignments
+    // Use direct object creation with ternary operators to eliminate property assignments
     const job: Job<T> = {
-      id: jobId,
-      status: "pending",
-      meta: jobMeta,
+      id: definition.id ? definition.id : `job_${jobIdCounterValue}`,
+      status: "pending" as const,
+      meta: definition.meta ? definition.meta : {},
       createdAt: createdAtValue,
-      timeout: jobTimeout,
+      timeout: definition.timeout ? definition.timeout : this.defaultTimeout,
     };
 
-    this.jobs.set(jobId, job);
+    this.jobs.set(job.id, job);
     this.pending.push({ def: definition, job });
     this.drain();
 
