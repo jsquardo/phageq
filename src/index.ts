@@ -98,40 +98,40 @@ export class Queue<T = unknown> extends EventEmitter {
   private jobIdCounter: number = 0;
   private createdAtCounter: number = 0;
   
-  // Cached listener states to eliminate repeated listenerCount() calls
-  private hasCompletedListeners: boolean = false;
-  private hasFailedListeners: boolean = false;
-  private hasTimeoutListeners: boolean = false;
-  private hasIdleListeners: boolean = false;
+  // Cached listener counts to eliminate listenerCount() calls
+  private completedListenerCount: number = 0;
+  private failedListenerCount: number = 0;
+  private timeoutListenerCount: number = 0;
+  private idleListenerCount: number = 0;
 
   constructor(options: QueueOptions = {}) {
     super();
     this.concurrency = Math.max(1, options.concurrency ?? 1);
     this.defaultTimeout = options.defaultTimeout;
     
-    // Update cached flags when listeners are added/removed
+    // Update cached counts when listeners are added/removed
     this.on('newListener', (event: string) => {
-      this.updateListenerCache(event, true);
+      this.updateListenerCount(event, 1);
     });
     
     this.on('removeListener', (event: string) => {
-      this.updateListenerCache(event, false);
+      this.updateListenerCount(event, -1);
     });
   }
 
-  private updateListenerCache(event: string, isAdding: boolean): void {
+  private updateListenerCount(event: string, delta: number): void {
     switch (event) {
       case 'completed':
-        this.hasCompletedListeners = isAdding || this.listenerCount('completed') > 0;
+        this.completedListenerCount += delta;
         break;
       case 'failed':
-        this.hasFailedListeners = isAdding || this.listenerCount('failed') > 0;
+        this.failedListenerCount += delta;
         break;
       case 'timeout':
-        this.hasTimeoutListeners = isAdding || this.listenerCount('timeout') > 0;
+        this.timeoutListenerCount += delta;
         break;
       case 'idle':
-        this.hasIdleListeners = isAdding || this.listenerCount('idle') > 0;
+        this.idleListenerCount += delta;
         break;
     }
   }
@@ -252,15 +252,15 @@ export class Queue<T = unknown> extends EventEmitter {
       
       // Conditionally call Date.now() only when listeners need timing data
       let completedAt: number;
-      if (this.hasCompletedListeners || this.hasTimeoutListeners || this.hasFailedListeners) {
+      if (this.completedListenerCount > 0 || this.timeoutListenerCount > 0 || this.failedListenerCount > 0) {
         completedAt = Date.now();
       } else {
         completedAt = 0; // Minimal overhead placeholder
       }
       job.completedAt = completedAt;
       
-      // Use cached flag instead of listenerCount() call
-      if (this.hasCompletedListeners) {
+      // Use cached count instead of listenerCount() call
+      if (this.completedListenerCount > 0) {
         this.emit("completed", job);
       }
     } catch (err) {
@@ -278,7 +278,7 @@ export class Queue<T = unknown> extends EventEmitter {
       
       // Conditionally call Date.now() only when listeners need timing data
       let completedAt: number;
-      if (this.hasCompletedListeners || this.hasTimeoutListeners || this.hasFailedListeners) {
+      if (this.completedListenerCount > 0 || this.timeoutListenerCount > 0 || this.failedListenerCount > 0) {
         completedAt = Date.now();
       } else {
         completedAt = 0; // Minimal overhead placeholder
@@ -286,15 +286,15 @@ export class Queue<T = unknown> extends EventEmitter {
       job.completedAt = completedAt;
       
       // Emit timeout event for timeout jobs, failed event for regular failures
-      if (job.status === "timeout" && this.hasTimeoutListeners) {
+      if (job.status === "timeout" && this.timeoutListenerCount > 0) {
         this.emit("timeout", job);
-      } else if (job.status === "failed" && this.hasFailedListeners) {
+      } else if (job.status === "failed" && this.failedListenerCount > 0) {
         this.emit("failed", job);
       }
     } finally {
       this.running--;
       this.drain();
-      if (this.running === 0 && this.pending.length === 0 && this.hasIdleListeners) {
+      if (this.running === 0 && this.pending.length === 0 && this.idleListenerCount > 0) {
         this.emit("idle");
       }
     }
