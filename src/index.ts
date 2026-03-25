@@ -18,6 +18,8 @@ export interface JobDefinition<T = unknown> {
   meta?: Record<string, unknown>;
   /** Timeout policy for this job */
   timeout?: TimeoutPolicy;
+  /** Priority level — lower numbers = higher priority */
+  priority?: number;
 }
 
 export interface Job<T = unknown> {
