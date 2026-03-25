@@ -33,6 +33,7 @@ export interface Job<T = unknown> {
   completedAt?: number;
   timedOut?: boolean;
   timeout?: TimeoutPolicy;
+  priority?: number;
 }
 
 export interface QueueOptions {
@@ -89,6 +90,91 @@ class Deque<T> {
   }
 }
 
+// ─── Priority Heap ────────────────────────────────────────────────────────────
+
+/**
+ * Min-heap for priority queue operations. Lower priority numbers = higher precedence.
+ */
+class PriorityHeap<T> {
+  private items: Array<{ item: T; priority: number; insertOrder: number }> = [];
+  private insertCounter = 0;
+
+  /**
+   * Add an item with priority. O(log n) operation.
+   */
+  push(item: T, priority: number): void {
+    const entry = { item, priority, insertOrder: this.insertCounter++ };
+    this.items.push(entry);
+    this.bubbleUp(this.items.length - 1);
+  }
+
+  /**
+   * Remove and return the highest priority item. O(log n) operation.
+   */
+  shift(): T | undefined {
+    if (this.items.length === 0) return undefined;
+    if (this.items.length === 1) return this.items.pop()!.item;
+
+    const root = this.items[0].item;
+    this.items[0] = this.items.pop()!;
+    this.bubbleDown(0);
+    return root;
+  }
+
+  /**
+   * Number of items in the heap.
+   */
+  get length(): number {
+    return this.items.length;
+  }
+
+  private bubbleUp(index: number): void {
+    while (index > 0) {
+      const parentIndex = Math.floor((index - 1) / 2);
+      if (this.compare(index, parentIndex) >= 0) break;
+      
+      this.swap(index, parentIndex);
+      index = parentIndex;
+    }
+  }
+
+  private bubbleDown(index: number): void {
+    while (true) {
+      const leftChild = 2 * index + 1;
+      const rightChild = 2 * index + 2;
+      let smallest = index;
+
+      if (leftChild < this.items.length && this.compare(leftChild, smallest) < 0) {
+        smallest = leftChild;
+      }
+      if (rightChild < this.items.length && this.compare(rightChild, smallest) < 0) {
+        smallest = rightChild;
+      }
+      if (smallest === index) break;
+
+      this.swap(index, smallest);
+      index = smallest;
+    }
+  }
+
+  private compare(i: number, j: number): number {
+    const a = this.items[i];
+    const b = this.items[j];
+    
+    // Compare by priority first (lower = higher precedence)
+    if (a.priority !== b.priority) {
+      return a.priority - b.priority;
+    }
+    
+    // For same priority, maintain FIFO order (lower insertOrder = earlier)
+    return a.insertOrder - b.insertOrder;
+  }
+
+  private swap(i: number, j: number): void {
+    [this.items[i], this.items[j]] = [this.items[j], this.items[i]];
+  }
+}
+
 // ─── Queue ────────────────────────────────────────────────────────────────────
 
 export class Queue<T = unknown> extends EventEmitter {
@@ -96,9 +182,11 @@ export class Queue<T = unknown> extends EventEmitter {
   private readonly defaultTimeout?: TimeoutPolicy;
   private running: number = 0;
   private readonly pending: Deque<{ def: JobDefinition<T>; job: Job<T> }> = new Deque();
+  private priorityPending?: PriorityHeap<{ def: JobDefinition<T>; job: Job<T> }>;
   private readonly jobs: Map<string, Job<T>> = new Map();
   private jobIdCounter: number = 0;
   private createdAtCounter: number = 0;
+  private hasPriorityJobs: boolean = false;
   
   // Cached listener counts to eliminate listenerCount() calls
   private completedListenerCount: number = 0;
@@ -153,13 +241,39 @@ export class Queue<T = unknown> extends EventEmitter {
       meta: definition.meta ? definition.meta : {},
       createdAt: createdAtValue,
       timeout: definition.timeout ? definition.timeout : this.defaultTimeout,
+      priority: definition.priority,
     };
 
     this.jobs.set(job.id, job);
-    this.pending.push({ def: definition, job });
+    
+    // Check if this job has priority or if we're already using priority scheduling
+    if (definition.priority !== undefined || this.hasPriorityJobs) {
+      this.addToPriorityQueue({ def: definition, job });
+    } else {
+      // Fast path: no priorities involved, use deque
+      this.pending.push({ def: definition, job });
+    }
+    
     this.drain();
-
     return job;
+  }
+
+  private addToPriorityQueue(entry: { def: JobDefinition<T>; job: Job<T> }): void {
+    // Migrate from deque to heap on first priority job
+    if (!this.hasPriorityJobs) {
+      this.hasPriorityJobs = true;
+      this.priorityPending = new PriorityHeap();
+      
+      // Migrate existing FIFO jobs to priority queue with default priority
+      while (this.pending.length > 0) {
+        const existingEntry = this.pending.shift()!;
+        this.priorityPending.push(existingEntry, Number.MAX_SAFE_INTEGER);
+      }
+    }
+    
+    // Add new job with its priority (or default for FIFO jobs)
+    const priority = entry.def.priority ?? Number.MAX_SAFE_INTEGER;
+    this.priorityPending!.push(entry, priority);
   }
 
   /** Get a job by id */
@@ -174,7 +288,9 @@ export class Queue<T = unknown> extends EventEmitter {
 
   /** Number of jobs waiting to run */
   get pendingCount(): number {
-    return this.pending.length;
+    return this.hasPriorityJobs 
+      ? (this.priorityPending?.length ?? 0)
+      : this.pending.length;
   }
 
   /** Total jobs tracked (pending + running + done) */
@@ -184,7 +300,7 @@ export class Queue<T = unknown> extends EventEmitter {
 
   /** Resolves when the queue is empty and all jobs have finished */
   onIdle(): Promise<void> {
-    if (this.running === 0 && this.pending.length === 0) {
+    if (this.running === 0 && this.pendingCount === 0) {
       return Promise.resolve();
     }
     return new Promise((resolve) => {
@@ -195,9 +311,17 @@ export class Queue<T = unknown> extends EventEmitter {
   // ── Internal ────────────────────────────────────────────────────────────────
 
   private drain(): void {
-    while (this.running < this.concurrency && this.pending.length > 0) {
-      const next = this.pending.shift();
+    while (this.running < this.concurrency && this.pendingCount > 0) {
+      const next = this.getNextJob();
       if (next) this.execute(next.def, next.job);
+    }
+  }
+
+  private getNextJob(): { def: JobDefinition<T>; job: Job<T> } | undefined {
+    if (this.hasPriorityJobs) {
+      return this.priorityPending?.shift();
+    } else {
+      return this.pending.shift();
     }
   }
 
@@ -274,7 +398,7 @@ export class Queue<T = unknown> extends EventEmitter {
     } finally {
       this.running--;
       this.drain();
-      if (this.running === 0 && this.pending.length === 0 && this.idleListenerCount > 0) {
+      if (this.running === 0 && this.pendingCount === 0 && this.idleListenerCount > 0) {
         this.emit("idle");
       }
     }
