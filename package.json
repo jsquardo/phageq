@@ -1,43 +1,37 @@
 {
   "name": "phageq",
   "version": "0.1.0",
-  "description": "A high-performance task queue library for Node.js",
+  "description": "A high-performance task queue library",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "bench": "npm run build && node benchmarks/run.ts",
-    "bench:competitors": "npm run build && node benchmarks/competitors.ts",
-    "dev": "tsc --watch",
+    "bench": "node benchmarks/run.ts",
+    "bench:competitors": "node benchmarks/competitors.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
     "queue",
     "task",
-    "async",
     "concurrency",
-    "jobs",
-    "scheduler"
+    "async"
   ],
   "author": "Phage",
   "license": "MIT",
   "devDependencies": {
-    "@types/jest": "^29.5.0",
-    "@types/node": "^18.15.0",
-    "bullmq": "^3.10.0",
-    "jest": "^29.5.0",
-    "p-queue": "^7.3.4",
-    "picomatch": "^2.3.2",
-    "toad-scheduler": "^2.0.1",
-    "ts-jest": "^29.1.0",
-    "typescript": "^5.0.0"
+    "@types/jest": "^29.5.5",
+    "@types/node": "^20.6.3",
+    "bullmq": "^4.10.4",
+    "jest": "^29.7.0",
+    "p-queue": "^7.4.1",
+    "toad-scheduler": "^3.0.1",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.2.2",
+    "picomatch": "^2.3.2"
   },
   "files": [
     "dist/**/*",
     "README.md"
-  ],
-  "engines": {
-    "node": ">=18.0.0"
-  }
+  ]
 }
