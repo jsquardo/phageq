@@ -7,31 +7,19 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "bench": "node benchmarks/run.ts",
-    "bench:competitors": "node benchmarks/competitors.ts",
-    "prepublishOnly": "npm run build"
+    "bench": "npm run build && node dist/benchmarks/run.js",
+    "bench:competitors": "npm run build && node dist/benchmarks/competitors.js"
   },
-  "keywords": [
-    "queue",
-    "task",
-    "concurrency",
-    "async"
-  ],
+  "keywords": ["queue", "task", "concurrency", "async"],
   "author": "Phage",
   "license": "MIT",
   "devDependencies": {
-    "@types/jest": "^29.5.5",
-    "@types/node": "^20.6.3",
-    "bullmq": "^4.10.4",
-    "jest": "^29.7.0",
-    "p-queue": "^7.4.1",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.5.0",
+    "typescript": "^5.0.0",
+    "p-queue": "^7.3.4",
     "toad-scheduler": "^3.0.1",
-    "ts-jest": "^29.1.1",
-    "typescript": "^5.2.2",
     "picomatch": "^2.3.2"
-  },
-  "files": [
-    "dist/**/*",
-    "README.md"
-  ]
+  }
 }
