@@ -328,28 +328,23 @@ export class Queue<T = unknown> extends EventEmitter {
   private async execute(def: JobDefinition<T>, job: Job<T>): Promise<void> {
     this.running++;
     job.status = "running";
+    job.startedAt = Date.now();
+
+    let timeoutHandle: NodeJS.Timeout | undefined;
 
     try {
       // Fast path: no timeout configured
       if (!job.timeout) {
         job.result = await def.run();
       } else {
-        // Slow path: timeout configured, use Promise.race()
-        let timeoutHandle: NodeJS.Timeout | undefined;
-        
+        // Timeout configured - use Promise.race()
         const timeoutPromise = new Promise<never>((_, reject) => {
           timeoutHandle = setTimeout(() => {
             reject(new Error(`Job ${job.id} timed out after ${job.timeout!.timeoutMs}ms`));
           }, job.timeout!.timeoutMs);
         });
 
-        try {
-          job.result = await Promise.race([def.run(), timeoutPromise]);
-        } finally {
-          if (timeoutHandle) {
-            clearTimeout(timeoutHandle);
-          }
-        }
+        job.result = await Promise.race([def.run(), timeoutPromise]);
       }
 
       job.status = "completed";
@@ -368,23 +363,31 @@ export class Queue<T = unknown> extends EventEmitter {
         job.status = "timeout";
         job.timedOut = true;
         // job.result remains undefined - timeout won the race
+        
+        if (this.timeoutListenerCount > 0) {
+          job.completedAt = Date.now();
+          this.emit("timeout", job);
+        } else {
+          job.completedAt = 0;
+        }
       } else {
         job.status = "failed";
+        
+        if (this.failedListenerCount > 0) {
+          job.completedAt = Date.now();
+          this.emit("failed", job);
+        } else {
+          job.completedAt = 0;
+        }
       }
       
       job.error = error;
-      
-      // Only call Date.now() if listeners actually need the timestamp
-      if (job.status === "timeout" && this.timeoutListenerCount > 0) {
-        job.completedAt = Date.now();
-        this.emit("timeout", job);
-      } else if (job.status === "failed" && this.failedListenerCount > 0) {
-        job.completedAt = Date.now();
-        this.emit("failed", job);
-      } else {
-        job.completedAt = 0; // Minimal overhead placeholder
-      }
     } finally {
+      // Clean up timeout handle to prevent memory leaks
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+      
       this.running--;
       this.drain();
       if (this.running === 0 && this.pendingCount === 0 && this.idleListenerCount > 0) {
