@@ -354,18 +354,12 @@ export class Queue<T = unknown> extends EventEmitter {
 
       job.status = "completed";
       
-      // Conditionally call Date.now() only when listeners need timing data
-      let completedAt: number;
-      if (this.completedListenerCount > 0 || this.timeoutListenerCount > 0 || this.failedListenerCount > 0) {
-        completedAt = Date.now();
-      } else {
-        completedAt = 0; // Minimal overhead placeholder
-      }
-      job.completedAt = completedAt;
-      
-      // Use cached count instead of listenerCount() call
+      // Only call Date.now() if listeners actually need the timestamp
       if (this.completedListenerCount > 0) {
+        job.completedAt = Date.now();
         this.emit("completed", job);
+      } else {
+        job.completedAt = 0; // Minimal overhead placeholder
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
@@ -380,20 +374,15 @@ export class Queue<T = unknown> extends EventEmitter {
       
       job.error = error;
       
-      // Conditionally call Date.now() only when listeners need timing data
-      let completedAt: number;
-      if (this.completedListenerCount > 0 || this.timeoutListenerCount > 0 || this.failedListenerCount > 0) {
-        completedAt = Date.now();
-      } else {
-        completedAt = 0; // Minimal overhead placeholder
-      }
-      job.completedAt = completedAt;
-      
-      // Emit timeout event for timeout jobs, failed event for regular failures
+      // Only call Date.now() if listeners actually need the timestamp
       if (job.status === "timeout" && this.timeoutListenerCount > 0) {
+        job.completedAt = Date.now();
         this.emit("timeout", job);
       } else if (job.status === "failed" && this.failedListenerCount > 0) {
+        job.completedAt = Date.now();
         this.emit("failed", job);
+      } else {
+        job.completedAt = 0; // Minimal overhead placeholder
       }
     } finally {
       this.running--;
