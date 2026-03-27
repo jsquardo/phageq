@@ -1,39 +1,29 @@
 {
   "name": "phageq",
   "version": "1.0.0",
-  "description": "A high-performance task queue for Node.js",
+  "description": "High-performance async job queue with concurrency control",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "bench": "npm run build && node benchmarks/run.ts",
-    "bench:competitors": "node benchmarks/competitors.ts",
-    "prepublishOnly": "npm run build"
+    "bench": "npm run build && node benchmarks/run.js phageq",
+    "bench:competitors": "node benchmarks/run.js competitors"
   },
-  "keywords": [
-    "queue",
-    "task",
-    "concurrency",
-    "async",
-    "performance"
-  ],
+  "keywords": ["queue", "async", "concurrency", "jobs", "performance"],
   "author": "Phage",
   "license": "MIT",
   "devDependencies": {
-    "@types/jest": "^29.5.5",
-    "@types/node": "^20.0.0",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.19",
     "jest": "^29.7.0",
+    "picomatch": "^2.3.2",
     "ts-jest": "^29.1.2",
-    "typescript": "^5.0.0",
-    "picomatch": "^2.3.2"
+    "typescript": "^5.3.3"
   },
   "overrides": {
     "picomatch": "^2.3.2",
-    "brace-expansion": "^5.0.5",
-    "minimatch": "^10.0.3",
-    "glob": "^10.5.1",
+    "brace-expansion": "^2.0.1",
     "handlebars": "^4.7.9"
-  },
-  "dependencies": {}
+  }
 }
