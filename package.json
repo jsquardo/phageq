@@ -1,39 +1,33 @@
 {
   "name": "phageq",
   "version": "1.0.0",
-  "description": "High-performance async queue with priority support and timeouts",
+  "description": "High-performance task queue with concurrency control",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "bench": "npm run build && node dist/benchmarks/run.js",
-    "bench:competitors": "npm run build && node dist/benchmarks/competitors.js",
-    "prepublishOnly": "npm run build"
+    "dev": "ts-node src/index.ts",
+    "bench": "npm run build && node benchmarks/run.js",
+    "bench:competitors": "node benchmarks/competitors.js"
   },
+  "keywords": ["queue", "task", "concurrency", "async", "performance"],
+  "author": "Phage",
+  "license": "MIT",
   "devDependencies": {
-    "@types/jest": "^29.5.5",
-    "@types/node": "^20.6.0",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.24",
     "jest": "^29.7.0",
-    "p-queue": "^7.4.1",
-    "picomatch": "^2.3.2",
-    "toad-scheduler": "^3.0.1",
     "ts-jest": "^29.1.2",
-    "typescript": "^5.2.2"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "picomatch": "^2.3.2",
+    "p-queue": "^8.0.1",
+    "toad-scheduler": "^3.0.1"
   },
   "overrides": {
-    "picomatch": "^2.3.2",
+    "handlebars": "^4.7.9",
     "brace-expansion": "^2.0.1",
-    "handlebars": "^4.7.9"
-  },
-  "keywords": [
-    "queue",
-    "async",
-    "concurrency",
-    "priority",
-    "timeout",
-    "performance"
-  ],
-  "author": "Phage",
-  "license": "MIT"
+    "picomatch": "^2.3.2"
+  }
 }
