@@ -1,27 +1,28 @@
 {
   "name": "phageq",
   "version": "1.0.0",
-  "description": "A high-performance, zero-dependency task queue for Node.js",
+  "description": "A high-performance task queue library",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "bench": "npm run build && node benchmarks/run.js",
-    "bench:competitors": "npm run build && node benchmarks/competitors.js"
+    "bench": "npm run build && node dist/benchmarks/run.js",
+    "bench:competitors": "npm run build && node dist/benchmarks/competitors.js",
+    "dev": "tsc --watch"
   },
-  "keywords": ["queue", "task", "job", "async", "concurrency"],
+  "keywords": ["queue", "task", "async", "concurrency", "performance"],
   "author": "Phage",
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.24",
+    "bullmq": "^5.4.2",
     "jest": "^29.7.0",
-    "ts-jest": "^29.1.2",
-    "typescript": "^5.3.3",
     "p-queue": "^8.0.1",
     "toad-scheduler": "^3.0.1",
-    "picomatch": "^2.3.2"
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.3.3"
   },
   "overrides": {
     "handlebars": "^4.7.9",
