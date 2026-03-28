@@ -1,17 +1,16 @@
 {
   "name": "phageq",
   "version": "1.0.0",
-  "description": "High-performance task queue with concurrency control",
+  "description": "A high-performance task queue for Node.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "dev": "ts-node src/index.ts",
-    "bench": "npm run build && node benchmarks/run.js",
-    "bench:competitors": "node benchmarks/competitors.js"
+    "bench": "npm run build && node benchmarks/run.ts",
+    "bench:competitors": "npm run build && node benchmarks/competitors.ts"
   },
-  "keywords": ["queue", "task", "concurrency", "async", "performance"],
+  "keywords": ["queue", "task", "async", "concurrency", "job"],
   "author": "Phage",
   "license": "MIT",
   "devDependencies": {
@@ -19,9 +18,10 @@
     "@types/node": "^20.11.24",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.2",
-    "ts-node": "^10.9.2",
     "typescript": "^5.3.3",
-    "picomatch": "^2.3.2",
+    "picomatch": "^2.3.2"
+  },
+  "dependencies": {
     "p-queue": "^8.0.1",
     "toad-scheduler": "^3.0.1"
   },
