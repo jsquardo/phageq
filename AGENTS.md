@@ -294,6 +294,31 @@ to fix next.
 
 ---
 
+## Fixing npm audit vulnerabilities
+
+When `npm audit` reports vulnerabilities that persist after adding or updating `overrides` 
+in `package.json`, the lockfile is almost certainly stale. npm resolves transitive 
+dependencies from `package-lock.json` — writing new overrides without regenerating the 
+lockfile has no effect.
+
+**The correct fix sequence:**
+1. Update `package.json` overrides with the required secure versions
+2. Run `rm package-lock.json && npm install` to force full re-resolution
+3. Run `npm audit` again to verify the vulnerabilities are resolved
+4. Only then commit — committing `package.json` without verifying the audit result is a 
+   wasted cycle
+
+**Watch out for this specific trap:** if a package appears in both `devDependencies` and 
+`overrides` at the same version, the override is doing nothing — npm's direct dependency 
+declaration takes precedence. Remove it from `devDependencies` and keep it in `overrides` 
+only if it is not a direct dependency of phageq itself.
+
+If the same audit findings appear three or more cycles in a row, the override strategy is 
+not working. Stop repeating it and investigate whether the vulnerable package is a nested 
+transitive dep that requires a different resolution approach.
+
+--
+
 ## Keeping README.md in sync
 
 README.md must be updated every cycle that adds or changes public API. This is
