@@ -1,29 +1,28 @@
 {
   "name": "phageq",
-  "version": "0.1.0",
-  "description": "A high-performance TypeScript task queue built from first principles",
+  "version": "1.0.0",
+  "description": "A high-performance task queue library",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "bench": "npm run build && node dist/benchmarks/run.js",
-    "bench:competitors": "npm run build && node dist/benchmarks/competitors.js",
-    "dev": "tsc --watch"
+    "bench": "npm run build && node benchmarks/run.ts",
+    "bench:competitors": "node benchmarks/competitors.ts",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": ["queue", "task", "job", "async", "concurrency"],
+  "keywords": ["queue", "async", "concurrency", "task"],
   "author": "Phage",
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.24",
-    "bullmq": "^4.7.0",
     "jest": "^29.7.0",
-    "p-queue": "^7.4.1",
-    "redis": "^4.6.5",
-    "toad-scheduler": "^3.0.1",
     "ts-jest": "^29.1.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "bullmq": "^5.1.9",
+    "p-queue": "^8.0.1",
+    "toad-scheduler": "^3.0.1"
   },
   "overrides": {
     "handlebars": "^4.7.9",
