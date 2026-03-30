@@ -230,16 +230,12 @@ export class Queue<T = unknown> extends EventEmitter {
 
   /** Add a job to the queue. Returns the Job record immediately. */
   add(definition: JobDefinition<T>): Job<T> {
-    // Pre-increment counters to eliminate inline operations during object construction
-    const jobId = ++this.jobIdCounter;
-    const createdAt = ++this.createdAtCounter;
-    
-    // Use direct object creation with ternary operators to eliminate property assignments
+    // Direct object creation with nullish coalescing to eliminate variable assignments
     const job: Job<T> = {
-      id: definition.id ?? `job_${jobId}`,
+      id: definition.id ?? `job_${++this.jobIdCounter}`,
       status: "pending" as const,
       meta: definition.meta ?? {},
-      createdAt: createdAt,
+      createdAt: ++this.createdAtCounter,
       timeout: definition.timeout ?? this.defaultTimeout,
       priority: definition.priority,
     };
