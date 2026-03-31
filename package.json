@@ -1,26 +1,33 @@
 {
   "name": "phageq",
   "version": "0.1.0",
-  "description": "High-performance task queue with concurrency control, timeouts, and priority scheduling",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "description": "A high-performance TypeScript queue library",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "bench": "npm run build && node benchmarks/run.js",
-    "bench:competitors": "node benchmarks/competitors.js",
+    "bench": "npm run build && node lib/benchmarks/run.js",
+    "bench:competitors": "npm run build && node lib/benchmarks/competitors.js",
+    "prepare": "npm run build",
     "security-fix": "npm audit fix"
   },
-  "keywords": ["queue", "async", "concurrency", "task", "job", "priority", "timeout"],
-  "author": "Phage",
+  "keywords": [
+    "queue",
+    "async",
+    "concurrency",
+    "typescript"
+  ],
+  "author": "Phage Agent",
   "license": "MIT",
   "devDependencies": {
-    "@types/jest": "^29.5.14",
-    "@types/node": "^22.10.2",
+    "@types/jest": "^29.5.5",
+    "@types/node": "^20.6.3",
+    "bullmq": "^4.12.4",
     "jest": "^29.7.0",
-    "p-queue": "^8.0.1",
+    "p-queue": "^7.4.1",
     "toad-scheduler": "^3.0.1",
-    "typescript": "^5.7.2"
+    "typescript": "^5.2.2"
   },
   "overrides": {
     "handlebars": "^4.7.9",
