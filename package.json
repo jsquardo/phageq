@@ -1,7 +1,7 @@
 {
   "name": "phageq",
   "version": "1.0.0",
-  "description": "A high-performance task queue library for Node.js",
+  "description": "High-performance job queue for Node.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -11,14 +11,16 @@
     "bench:competitors": "npm run build && node dist/benchmarks/competitors.js",
     "security-fix": "rm -f package-lock.json && npm install && npm audit fix"
   },
-  "keywords": ["queue", "task", "job", "async", "concurrency"],
+  "keywords": ["queue", "job", "task", "async", "concurrency"],
   "author": "Phage",
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.14",
-    "@types/node": "^22.10.2",
+    "@types/node": "^20.17.9",
+    "bullmq": "^5.37.0",
     "jest": "^29.7.0",
     "p-queue": "^8.0.1",
+    "redis": "^4.7.0",
     "toad-scheduler": "^3.0.1",
     "typescript": "^5.7.2"
   },
