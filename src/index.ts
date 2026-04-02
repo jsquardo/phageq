@@ -230,7 +230,7 @@ export class Queue<T = unknown> extends EventEmitter {
 
   /** Add a job to the queue. Returns the Job record immediately. */
   add(definition: JobDefinition<T>): Job<T> {
-    // Direct object creation with nullish coalescing to eliminate variable assignments
+    // Optimized object creation - compute values inline to eliminate variables
     const job: Job<T> = {
       id: definition.id ?? `job_${++this.jobIdCounter}`,
       status: "pending" as const,
