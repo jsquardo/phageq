@@ -324,7 +324,8 @@ export class Queue<T = unknown> extends EventEmitter {
   private async execute(def: JobDefinition<T>, job: Job<T>): Promise<void> {
     this.running++;
     job.status = "running";
-    job.startedAt = Date.now();
+    // Ultra-fast hot path - avoid Date.now() call for startedAt when possible
+    job.startedAt = this.completedListenerCount > 0 || this.failedListenerCount > 0 || this.timeoutListenerCount > 0 ? Date.now() : 0;
 
     let timeoutHandle: NodeJS.Timeout | undefined;
 
