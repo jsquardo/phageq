@@ -354,7 +354,7 @@ export class Queue<T = unknown> extends EventEmitter {
 
       job.status = "completed";
       
-      // Only call Date.now() if listeners actually need the timestamp
+      // Only call Date.now() once and only if listeners need the timestamp
       if (this.completedListenerCount > 0) {
         job.completedAt = Date.now();
         this.emit("completed", job);
@@ -364,25 +364,24 @@ export class Queue<T = unknown> extends EventEmitter {
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       
+      // Compute completedAt timestamp once for all error paths
+      const completedTimestamp = this.hasTimestampListeners ? Date.now() : 0;
+      
       if (job.timeout && error.message.includes('timed out')) {
         job.status = "timeout";
         job.timedOut = true;
         // job.result remains undefined - timeout won the race
+        job.completedAt = completedTimestamp;
         
         if (this.timeoutListenerCount > 0) {
-          job.completedAt = Date.now();
           this.emit("timeout", job);
-        } else {
-          job.completedAt = 0;
         }
       } else {
         job.status = "failed";
+        job.completedAt = completedTimestamp;
         
         if (this.failedListenerCount > 0) {
-          job.completedAt = Date.now();
           this.emit("failed", job);
-        } else {
-          job.completedAt = 0;
         }
       }
       
