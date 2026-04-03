@@ -1,28 +1,28 @@
 {
   "name": "phageq",
   "version": "1.0.0",
-  "description": "A high-performance TypeScript task queue library",
+  "description": "High-performance in-process task queue with concurrency control",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "bench": "npm run build && node dist/benchmarks/run.js",
-    "bench:competitors": "npm run build && node dist/benchmarks/competitors.js",
-    "security-fix": "rm -f package-lock.json && npm install"
+    "bench": "npm run build && node benchmarks/run.js",
+    "bench:competitors": "node benchmarks/competitors.js",
+    "postinstall": "npm audit"
   },
   "keywords": [
     "queue",
     "task",
-    "async",
     "concurrency",
-    "typescript"
+    "async",
+    "performance"
   ],
   "author": "Phage",
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.14",
-    "@types/node": "^22.10.2",
+    "@types/node": "^20.17.9",
     "jest": "^29.7.0",
     "p-queue": "^8.0.1",
     "toad-scheduler": "^3.0.1",
