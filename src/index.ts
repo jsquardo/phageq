@@ -193,6 +193,9 @@ export class Queue<T = unknown> extends EventEmitter {
   private failedListenerCount: number = 0;
   private timeoutListenerCount: number = 0;
   private idleListenerCount: number = 0;
+  
+  // Pre-computed flag for hot path optimization
+  private hasTimestampListeners: boolean = false;
 
   constructor(options: QueueOptions = {}) {
     super();
@@ -224,6 +227,11 @@ export class Queue<T = unknown> extends EventEmitter {
         this.idleListenerCount += delta;
         break;
     }
+    
+    // Update pre-computed flag for hot path
+    this.hasTimestampListeners = this.completedListenerCount > 0 || 
+                                 this.failedListenerCount > 0 || 
+                                 this.timeoutListenerCount > 0;
   }
 
   // ── Public API ──────────────────────────────────────────────────────────────
@@ -324,8 +332,8 @@ export class Queue<T = unknown> extends EventEmitter {
   private async execute(def: JobDefinition<T>, job: Job<T>): Promise<void> {
     this.running++;
     job.status = "running";
-    // Ultra-fast hot path - avoid Date.now() call for startedAt when possible
-    job.startedAt = this.completedListenerCount > 0 || this.failedListenerCount > 0 || this.timeoutListenerCount > 0 ? Date.now() : 0;
+    // Ultra-fast hot path - single flag check instead of multiple listener counts
+    job.startedAt = this.hasTimestampListeners ? Date.now() : 0;
 
     let timeoutHandle: NodeJS.Timeout | undefined;
 
