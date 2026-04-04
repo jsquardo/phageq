@@ -354,7 +354,7 @@ export class Queue<T = unknown> extends EventEmitter {
 
       job.status = "completed";
       
-      // Only call Date.now() once and only if listeners need the timestamp
+      // Only emit event if listeners exist - eliminate unnecessary function calls
       if (this.completedListenerCount > 0) {
         job.completedAt = Date.now();
         this.emit("completed", job);
@@ -373,6 +373,7 @@ export class Queue<T = unknown> extends EventEmitter {
         // job.result remains undefined - timeout won the race
         job.completedAt = completedTimestamp;
         
+        // Only emit event if listeners exist - eliminate unnecessary function calls
         if (this.timeoutListenerCount > 0) {
           this.emit("timeout", job);
         }
@@ -380,6 +381,7 @@ export class Queue<T = unknown> extends EventEmitter {
         job.status = "failed";
         job.completedAt = completedTimestamp;
         
+        // Only emit event if listeners exist - eliminate unnecessary function calls
         if (this.failedListenerCount > 0) {
           this.emit("failed", job);
         }
@@ -394,6 +396,7 @@ export class Queue<T = unknown> extends EventEmitter {
       
       this.running--;
       this.drain();
+      // Only emit idle event if listeners exist - eliminate unnecessary function calls
       if (this.running === 0 && this.pendingCount === 0 && this.idleListenerCount > 0) {
         this.emit("idle");
       }
