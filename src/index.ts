@@ -237,23 +237,33 @@ export class Queue<T = unknown> extends EventEmitter {
 
   /** Add a job to the queue. Returns the Job record immediately. */
   add(definition: JobDefinition<T>): Job<T> {
-    // Ultra-optimized job creation - single counter increment, direct object literal construction
+    // Ultra-optimized job creation - single counter increment, direct property assignment
     const jobCounter = ++this.jobIdCounter;
-    const jobId = definition.id ?? `job_${jobCounter}`;
-    const jobMeta = definition.meta ?? {};
-    const jobTimeout = definition.timeout ?? this.defaultTimeout;
     
-    // Create job with direct property assignment to minimize object creation overhead
-    const job: Job<T> = {
-      id: jobId,
-      status: "pending" as const,
-      meta: jobMeta,
-      createdAt: jobCounter,
-      timeout: jobTimeout,
-      priority: definition.priority,
-    };
+    // Create job with minimal overhead - direct property assignment
+    const job = {} as Job<T>;
+    job.id = definition.id || `job_${jobCounter}`;
+    job.status = "pending";
+    job.createdAt = jobCounter;
+    
+    // Only assign optional properties if they exist
+    if (definition.meta) {
+      job.meta = definition.meta;
+    } else {
+      job.meta = {};
+    }
+    
+    if (definition.timeout) {
+      job.timeout = definition.timeout;
+    } else if (this.defaultTimeout) {
+      job.timeout = this.defaultTimeout;
+    }
+    
+    if (definition.priority !== undefined) {
+      job.priority = definition.priority;
+    }
 
-    this.jobs.set(jobId, job);
+    this.jobs.set(job.id, job);
     
     // Check if this job has priority or if we're already using priority scheduling
     if (definition.priority !== undefined || this.hasPriorityJobs) {
