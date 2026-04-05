@@ -185,7 +185,6 @@ export class Queue<T = unknown> extends EventEmitter {
   private priorityPending?: PriorityHeap<{ def: JobDefinition<T>; job: Job<T> }>;
   private readonly jobs: Map<string, Job<T>> = new Map();
   private jobIdCounter: number = 0;
-  private createdAtCounter: number = 0;
   private hasPriorityJobs: boolean = false;
   
   // Cached listener counts to eliminate listenerCount() calls
@@ -238,12 +237,13 @@ export class Queue<T = unknown> extends EventEmitter {
 
   /** Add a job to the queue. Returns the Job record immediately. */
   add(definition: JobDefinition<T>): Job<T> {
-    // Highly optimized job creation - eliminate all unnecessary allocations
+    // Ultra-optimized job creation - single counter increment for both ID and createdAt
+    const jobCounter = ++this.jobIdCounter;
     const job: Job<T> = {
-      id: definition.id ?? `job_${++this.jobIdCounter}`,
+      id: definition.id ?? `job_${jobCounter}`,
       status: "pending" as const,
       meta: definition.meta ?? {},
-      createdAt: ++this.createdAtCounter,
+      createdAt: jobCounter,
       timeout: definition.timeout ?? this.defaultTimeout,
       priority: definition.priority,
     };
