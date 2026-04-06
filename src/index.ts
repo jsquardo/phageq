@@ -245,14 +245,9 @@ export class Queue<T = unknown> extends EventEmitter {
     job.id = definition.id || `job_${jobCounter}`;
     job.status = "pending";
     job.createdAt = jobCounter;
+    job.meta = definition.meta || {};
     
     // Only assign optional properties if they exist
-    if (definition.meta) {
-      job.meta = definition.meta;
-    } else {
-      job.meta = {};
-    }
-    
     if (definition.timeout) {
       job.timeout = definition.timeout;
     } else if (this.defaultTimeout) {
