@@ -268,7 +268,12 @@ export class Queue<T = unknown> extends EventEmitter {
       this.pending.push({ def: definition, job });
     }
     
-    this.drain();
+    // Inline drain() logic to eliminate function call overhead
+    while (this.running < this.concurrency && this.pendingCount > 0) {
+      const next = this.getNextJob();
+      if (next) this.execute(next.def, next.job);
+    }
+    
     return job;
   }
 
@@ -323,13 +328,6 @@ export class Queue<T = unknown> extends EventEmitter {
   }
 
   // ── Internal ────────────────────────────────────────────────────────────────
-
-  private drain(): void {
-    while (this.running < this.concurrency && this.pendingCount > 0) {
-      const next = this.getNextJob();
-      if (next) this.execute(next.def, next.job);
-    }
-  }
 
   private getNextJob(): { def: JobDefinition<T>; job: Job<T> } | undefined {
     if (this.hasPriorityJobs) {
@@ -405,7 +403,13 @@ export class Queue<T = unknown> extends EventEmitter {
       }
       
       this.running--;
-      this.drain();
+      
+      // Inline drain() logic to eliminate function call overhead from execute() path
+      while (this.running < this.concurrency && this.pendingCount > 0) {
+        const next = this.getNextJob();
+        if (next) this.execute(next.def, next.job);
+      }
+      
       // Only emit idle event if listeners exist - eliminate unnecessary function calls
       if (this.running === 0 && this.pendingCount === 0 && this.idleListenerCount > 0) {
         this.emit("idle");
