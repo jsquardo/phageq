@@ -240,8 +240,8 @@ export class Queue<T = unknown> extends EventEmitter {
     // Ultra-optimized job creation - single counter increment, direct property assignment
     const jobCounter = ++this.jobIdCounter;
     
-    // Create job with minimal overhead - direct property assignment
-    const job = {} as Job<T>;
+    // Create job with maximum performance - Object.create(null) avoids prototype overhead
+    const job = Object.create(null) as Job<T>;
     job.id = definition.id || `job_${jobCounter}`;
     job.status = "pending";
     job.createdAt = jobCounter;
