@@ -340,8 +340,8 @@ export class Queue<T = unknown> extends EventEmitter {
   private async execute(def: JobDefinition<T>, job: Job<T>): Promise<void> {
     this.running++;
     job.status = "running";
-    // Ultra-fast hot path - single flag check instead of multiple listener counts
-    job.startedAt = this.hasTimestampListeners ? Date.now() : 0;
+    // Ultra-fast hot path - single counter increment instead of Date.now()
+    job.startedAt = this.hasTimestampListeners ? ++this.jobIdCounter : 0;
 
     let timeoutHandle: NodeJS.Timeout | undefined;
 
@@ -364,7 +364,7 @@ export class Queue<T = unknown> extends EventEmitter {
       
       // Only emit event if listeners exist - eliminate unnecessary function calls
       if (this.completedListenerCount > 0) {
-        job.completedAt = Date.now();
+        job.completedAt = ++this.jobIdCounter;
         this.emit("completed", job);
       } else {
         job.completedAt = 0; // Minimal overhead placeholder
@@ -373,7 +373,7 @@ export class Queue<T = unknown> extends EventEmitter {
       const error = err instanceof Error ? err : new Error(String(err));
       
       // Compute completedAt timestamp once for all error paths
-      const completedTimestamp = this.hasTimestampListeners ? Date.now() : 0;
+      const completedTimestamp = this.hasTimestampListeners ? ++this.jobIdCounter : 0;
       
       if (job.timeout && error.message.includes('timed out')) {
         job.status = "timeout";
