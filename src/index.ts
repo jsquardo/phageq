@@ -374,12 +374,12 @@ export class Queue<T = unknown> extends EventEmitter {
       
       // Compute completedAt timestamp once for all error paths
       const completedTimestamp = this.hasTimestampListeners ? ++this.jobIdCounter : 0;
+      job.completedAt = completedTimestamp;
       
       if (job.timeout && error.message.includes('timed out')) {
         job.status = "timeout";
         job.timedOut = true;
         // job.result remains undefined - timeout won the race
-        job.completedAt = completedTimestamp;
         
         // Only emit event if listeners exist - eliminate unnecessary function calls
         if (this.timeoutListenerCount > 0) {
@@ -387,7 +387,6 @@ export class Queue<T = unknown> extends EventEmitter {
         }
       } else {
         job.status = "failed";
-        job.completedAt = completedTimestamp;
         
         // Only emit event if listeners exist - eliminate unnecessary function calls
         if (this.failedListenerCount > 0) {
