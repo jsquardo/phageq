@@ -242,11 +242,11 @@ export class Queue<T = unknown> extends EventEmitter {
     
     // Create job with maximum performance - Object.create(null) avoids prototype overhead
     const job = Object.create(null) as Job<T>;
-    // Optimized ID generation - avoid template literal if custom ID provided
-    job.id = definition.id || `job_${jobCounter}`;
+    // Optimized ID generation - avoid template literal overhead, use string concatenation
+    job.id = definition.id ? definition.id : 'job_' + jobCounter;
     job.status = "pending";
     job.createdAt = jobCounter;
-    // Direct assignment eliminates || operator overhead for common case
+    // Direct assignment eliminates ?? operator overhead for common case
     job.meta = definition.meta ?? {};
     
     // Only assign optional properties if they exist
