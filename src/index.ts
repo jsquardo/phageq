@@ -192,9 +192,6 @@ export class Queue<T = unknown> extends EventEmitter {
   private failedListenerCount: number = 0;
   private timeoutListenerCount: number = 0;
   private idleListenerCount: number = 0;
-  
-  // Pre-computed flag for hot path optimization
-  private hasTimestampListeners: boolean = false;
 
   constructor(options: QueueOptions = {}) {
     super();
@@ -226,11 +223,6 @@ export class Queue<T = unknown> extends EventEmitter {
         this.idleListenerCount += delta;
         break;
     }
-    
-    // Update pre-computed flag for hot path
-    this.hasTimestampListeners = this.completedListenerCount > 0 || 
-                                 this.failedListenerCount > 0 || 
-                                 this.timeoutListenerCount > 0;
   }
 
   // ── Public API ──────────────────────────────────────────────────────────────
@@ -342,8 +334,10 @@ export class Queue<T = unknown> extends EventEmitter {
   private async execute(def: JobDefinition<T>, job: Job<T>): Promise<void> {
     this.running++;
     job.status = "running";
-    // Ultra-fast hot path - single counter increment instead of Date.now()
-    job.startedAt = this.hasTimestampListeners ? ++this.jobIdCounter : 0;
+    
+    // Simplified timestamp assignment - only compute if needed for events
+    const hasEventListeners = this.completedListenerCount > 0 || this.failedListenerCount > 0 || this.timeoutListenerCount > 0;
+    job.startedAt = hasEventListeners ? ++this.jobIdCounter : 0;
 
     let timeoutHandle: NodeJS.Timeout | undefined;
 
@@ -366,7 +360,7 @@ export class Queue<T = unknown> extends EventEmitter {
       
       // Only emit event if listeners exist - eliminate unnecessary function calls
       if (this.completedListenerCount > 0) {
-        job.completedAt = ++this.jobIdCounter;
+        job.completedAt = hasEventListeners ? ++this.jobIdCounter : 0;
         this.emit("completed", job);
       } else {
         job.completedAt = 0; // Minimal overhead placeholder
@@ -375,8 +369,7 @@ export class Queue<T = unknown> extends EventEmitter {
       const error = err instanceof Error ? err : new Error(String(err));
       
       // Compute completedAt timestamp once for all error paths
-      const completedTimestamp = this.hasTimestampListeners ? ++this.jobIdCounter : 0;
-      job.completedAt = completedTimestamp;
+      job.completedAt = hasEventListeners ? ++this.jobIdCounter : 0;
       
       if (job.timeout && error.message.includes('timed out')) {
         job.status = "timeout";
