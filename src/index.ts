@@ -239,10 +239,10 @@ export class Queue<T = unknown> extends EventEmitter {
     job.status = "pending";
     job.createdAt = jobCounter;
     // Direct assignment eliminates ?? operator overhead for common case
-    job.meta = definition.meta ?? {};
+    job.meta = definition.meta || {};
     
-    // Eliminate conditional branches - direct assignment with fallback
-    job.timeout = definition.timeout ?? this.defaultTimeout;
+    // Eliminate ?? operator overhead - direct assignment with fallback
+    job.timeout = definition.timeout || this.defaultTimeout;
     job.priority = definition.priority;
 
     this.jobs.set(job.id, job);
