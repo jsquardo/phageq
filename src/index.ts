@@ -241,16 +241,9 @@ export class Queue<T = unknown> extends EventEmitter {
     // Direct assignment eliminates ?? operator overhead for common case
     job.meta = definition.meta ?? {};
     
-    // Only assign optional properties if they exist
-    if (definition.timeout) {
-      job.timeout = definition.timeout;
-    } else if (this.defaultTimeout) {
-      job.timeout = this.defaultTimeout;
-    }
-    
-    if (definition.priority !== undefined) {
-      job.priority = definition.priority;
-    }
+    // Eliminate conditional branches - direct assignment with fallback
+    job.timeout = definition.timeout ?? this.defaultTimeout;
+    job.priority = definition.priority;
 
     this.jobs.set(job.id, job);
     
