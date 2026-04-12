@@ -235,7 +235,7 @@ export class Queue<T = unknown> extends EventEmitter {
     // Maximum performance object creation - direct literal with explicit properties
     const job = {
       // Optimized ID generation - avoid template literal overhead, use string concatenation
-      id: definition.id ? definition.id : 'job_' + jobCounter,
+      id: definition.id || 'job_' + jobCounter,
       status: "pending" as JobStatus,
       createdAt: jobCounter,
       // Direct assignment eliminates || operator overhead for common case
