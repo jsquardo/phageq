@@ -232,18 +232,18 @@ export class Queue<T = unknown> extends EventEmitter {
     // Ultra-optimized job creation - single counter increment, direct property assignment
     const jobCounter = ++this.jobIdCounter;
     
-    // Create job with maximum performance - Object.create(null) avoids prototype overhead
-    const job = Object.create(null) as Job<T>;
-    // Optimized ID generation - avoid template literal overhead, use string concatenation
-    job.id = definition.id ? definition.id : 'job_' + jobCounter;
-    job.status = "pending";
-    job.createdAt = jobCounter;
-    // Direct assignment eliminates ?? operator overhead for common case
-    job.meta = definition.meta || {};
-    
-    // Eliminate ?? operator overhead - direct assignment with fallback
-    job.timeout = definition.timeout || this.defaultTimeout;
-    job.priority = definition.priority;
+    // Maximum performance object creation - direct literal with explicit properties
+    const job = {
+      // Optimized ID generation - avoid template literal overhead, use string concatenation
+      id: definition.id ? definition.id : 'job_' + jobCounter,
+      status: "pending" as JobStatus,
+      createdAt: jobCounter,
+      // Direct assignment eliminates || operator overhead for common case
+      meta: definition.meta || {},
+      // Eliminate || operator overhead - direct assignment with fallback
+      timeout: definition.timeout || this.defaultTimeout,
+      priority: definition.priority
+    } as Job<T>;
 
     this.jobs.set(job.id, job);
     
